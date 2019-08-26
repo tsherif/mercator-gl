@@ -20,6 +20,7 @@
 
         #gl-canvas {
             position: absolute;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -54,19 +55,18 @@
         const float TILE_SIZE = 512.0;
         const float PI = 3.1415926536;
         const float WORLD_SCALE = TILE_SIZE / (PI * 2.0);
-
-        #define SCALE pow(2.0, 15.0)
         
         layout(location=0) in vec4 position;
         layout(location=1) in vec3 color;
 
+        uniform float scale;
         uniform mat4 projMat;
         uniform mat4 viewMat;
 
         vec4 project_position(vec4 position) {
             return vec4(
-                (radians(position.x) + PI) * WORLD_SCALE * SCALE, 
-                (PI - log(tan(PI * 0.25 + radians(position.y) * 0.5))) * WORLD_SCALE * SCALE, 
+                (radians(position.x) + PI) * WORLD_SCALE * scale, 
+                (PI - log(tan(PI * 0.25 + radians(position.y) * 0.5))) * WORLD_SCALE * scale, 
                 position.z - 0.01,
                 position.w
             );
@@ -90,8 +90,7 @@
         }
     </script>
     <script>
-        const ZOOM = 15;
-        const SCALE = Math.pow(2, ZOOM);
+        const INITIAL_ZOOM = 15;
         const PI = Math.PI;
         const PI_4 = PI / 4;
         const DEGREES_TO_RADIANS = PI / 180;
@@ -110,17 +109,27 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        let latlngCenter = [30.48688963987, 50.44638775297];
-        let worldCenter = lngLatToWorld(latlngCenter, SCALE, new Float32Array(3));
+        let initialCenter = [30.48688963987, 50.44638775297];
 
         mapboxgl.accessToken = 'pk.eyJ1IjoidHNoZXJpZiIsImEiOiJjanJ1dm1iNjYwZXM2M3lta2FjZ3dqa3JpIn0.js3Fu08SNC8Ca4VEWeiZ5A';
         let map = new mapboxgl.Map({
             container: mapboxContainer,
             style: "mapbox://styles/mapbox/streets-v9",
-            center: latlngCenter,
-            zoom: ZOOM
+            center: initialCenter,
+            zoom: INITIAL_ZOOM
         });
 
+        let mapCenter = map.getCenter();
+        let mapZoom = map.getZoom();
+        let mapPitch = map.getPitch();
+        let mapBearing = map.getBearing();
+
+        map.on("move", () => {
+            mapCenter = map.getCenter();
+            mapZoom = map.getZoom();
+            mapPitch = map.getPitch();
+            mapBearing = map.getBearing();
+        });
 
         
         let app = PicoGL.createApp(canvas, { alpha: true })
@@ -155,37 +164,41 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
-        let viewMat = getViewMatrix({
-            height: app.height,
-            pitch: map.getPitch(),
-            bearing: map.getBearing(),
-            center: worldCenter,
-            flipY: true
-        });
-
-        let projMat = getProjectionMatrix({
-            width: app.width,
-            height: app.height,
-            pitch: map.getPitch()
-        });
-
         // HERE
 
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
-            let drawCall = app.createDrawCall(program, triangleArray)
-            .uniform("projMat", projMat)
-            .uniform("viewMat", viewMat);
+            let drawCall = app.createDrawCall(program, triangleArray);
 
-            // DRAW
-            app.clear();
-            drawCall.draw();
+            requestAnimationFrame(function draw() {
+                requestAnimationFrame(draw);
 
-            // CLEANUP
-            program.delete();
-            positions.delete();
-            colors.delete();
-            triangleArray.delete();
+                let scale = Math.pow(2, mapZoom);
+                let {lng, lat} = mapCenter;
+                let worldCenter = lngLatToWorld([lng, lat], scale, new Float32Array(3));
+
+                let viewMat = getViewMatrix({
+                    height: app.height,
+                    pitch: mapPitch,
+                    bearing: mapBearing,
+                    center: worldCenter,
+                    flipY: true
+                });
+
+                let projMat = getProjectionMatrix({
+                    width: app.width,
+                    height: app.height,
+                    pitch: mapPitch
+                });
+
+                drawCall.uniform("scale", scale)
+                .uniform("projMat", projMat)
+                .uniform("viewMat", viewMat);
+
+                // DRAW
+                app.clear();
+                drawCall.draw();
+            });
         });
 
         function lngLatToWorld([lng, lat], scale, out) {
