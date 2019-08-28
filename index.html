@@ -176,7 +176,8 @@
                 let projMat = getProjectionMatrix({
                     width: app.width,
                     height: app.height,
-                    pitch: mapPitch
+                    pitch: mapPitch,
+                    near: 1.0
                 });
 
                 drawCall.uniform("scale", scale)
@@ -222,11 +223,8 @@
           const vm = mat4.create();
 
           // Move camera to ALTITUDE (along the pitch & bearing direction)
-          mat4.translate(vm, vm, [0, 0, -ALTITUDE]);
+          mat4.translate(vm, vm, [0, 0, -1.5 * height]);
 
-          // After the rotateX, z values are in pixel units. Convert them to
-          // ALTITUDE units. 1 ALTITUDE unit = the screen height.
-          mat4.scale(vm, vm, [1, 1, 1 / height]);
 
           // Rotate by bearing, and then by pitch (which tilts the view)
           mat4.rotateX(vm, vm, -pitch * DEGREES_TO_RADIANS);
@@ -249,41 +247,31 @@
           width,
           height,
           pitch = 0,
-          nearZMultiplier = 1,
-          farZMultiplier = 1
         }) {
-          // Find the distance from the center point to the center top
-          // in ALTITUDE units using law of sines.
+          const altitude = 1.5 * height;
           const pitchRadians = pitch * DEGREES_TO_RADIANS;
-          const halfFov = Math.atan(0.5 / ALTITUDE);
+          const halfFov = 0.3217505543966422;   // Math.atan(0.5 * height / altitude) => Math.atan(1 / 3)
           const topHalfSurfaceDistance =
-            Math.sin(halfFov) * ALTITUDE / Math.sin(Math.PI / 2 - pitchRadians - halfFov);
+            Math.sin(halfFov) * altitude / Math.sin(Math.PI / 2 - pitchRadians - halfFov);
 
           // Calculate z value of the farthest fragment that should be rendered.
-          const farZ = Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + ALTITUDE;
+          const farZ = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
 
           return {
-            fov: 2 * Math.atan((height / 2) / ALTITUDE),
+            fov: 2 * halfFov,
             aspect: width / height,
-            focalDistance: ALTITUDE,
-            near: nearZMultiplier,
-            far: farZ * farZMultiplier
+            far: farZ
           };
         }
 
-        // PROJECTION MATRIX: PROJECTS FROM CAMERA (VIEW) SPACE TO CLIPSPACE
-        // To match mapbox's z buffer:
-        // <= 0.28 - nearZMultiplier: 0.1, farZmultiplier: 1
-        // >= 0.29 - nearZMultiplier: 1 / height, farZMultiplier: 1.01
         function getProjectionMatrix({
           width,
           height,
           pitch,
-          nearZMultiplier = 0.1,
-          farZMultiplier = 10
+          near
         }) {
-          const {fov, aspect, near, far} =
-            getProjectionParameters({width, height, ALTITUDE, pitch, nearZMultiplier, farZMultiplier});
+          const {fov, aspect, far} =
+            getProjectionParameters({width, height, pitch});
 
           const projectionMatrix = mat4.perspective(
             mat4.create(),
@@ -294,32 +282,6 @@
           );
 
           return projectionMatrix;
-        }
-
-        function getProjectionParameters({
-          width,
-          height,
-          pitch = 0,
-          nearZMultiplier = 1,
-          farZMultiplier = 1
-        }) {
-          // Find the distance from the center point to the center top
-          // in ALTITUDE units using law of sines.
-          const pitchRadians = pitch * DEGREES_TO_RADIANS;
-          const halfFov = Math.atan(0.5 / ALTITUDE);
-          const topHalfSurfaceDistance =
-            Math.sin(halfFov) * ALTITUDE / Math.sin(Math.PI / 2 - pitchRadians - halfFov);
-
-          // Calculate z value of the farthest fragment that should be rendered.
-          const farZ = Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + ALTITUDE;
-
-          return {
-            fov: 2 * Math.atan((height / 2) / ALTITUDE),
-            aspect: width / height,
-            focalDistance: ALTITUDE,
-            near: nearZMultiplier,
-            far: farZ * farZMultiplier
-          };
         }
 
 
