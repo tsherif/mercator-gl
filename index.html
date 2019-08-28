@@ -65,7 +65,7 @@
         vec4 project_position(vec4 position) {
             return vec4(
                 (radians(position.x) + PI) * WORLD_SCALE, 
-                (PI - log(tan(PI * 0.25 + radians(position.y) * 0.5))) * WORLD_SCALE, 
+                -(PI - log(tan(PI * 0.25 + radians(position.y) * 0.5))) * WORLD_SCALE, 
                 position.z,
                 position.w
             );
@@ -169,7 +169,6 @@
                     bearing: mapBearing,
                     center: worldCenter,
                     scale,
-                    flipY: true,
                     out: viewMat
                 });
 
@@ -194,7 +193,7 @@
           const lambda2 = lng * DEGREES_TO_RADIANS;
           const phi2 = lat * DEGREES_TO_RADIANS;
           const x = TILE_SIZE * (lambda2 + PI) / (2 * PI);
-          const y = TILE_SIZE * (PI - Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
+          const y = -TILE_SIZE * (PI - Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
           
           out[0] = x;
           out[1] = y;
@@ -209,7 +208,6 @@
           pitch,
           bearing,
           center = null,
-          flipY = false,
           scale,
           out
         }) {
@@ -221,17 +219,13 @@
           // since vectors will be multiplied from the right during transformation
           mat4.identity(out);
 
-          // Move camera to ALTITUDE (along the pitch & bearing direction)
+          // Move camera to scaled position along the pitch & bearing direction
+          // (1.5 * screen height in pixels at zoom 0)
           mat4.translate(out, out, [0, 0, -1.5 * height / scale]);
-
 
           // Rotate by bearing, and then by pitch (which tilts the view)
           mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
           mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
-
-          if (flipY) {
-            mat4.scale(out, out, [1, -1, 1]);
-          }
 
           if (center) {
             mat4.translate(out, out, vec3.negate([], center));
