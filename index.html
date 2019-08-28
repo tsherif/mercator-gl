@@ -59,15 +59,14 @@
         layout(location=0) in vec4 position;
         layout(location=1) in vec3 color;
 
-        uniform float scale;
         uniform mat4 projMat;
         uniform mat4 viewMat;
 
         vec4 project_position(vec4 position) {
             return vec4(
-                (radians(position.x) + PI) * WORLD_SCALE * scale, 
-                (PI - log(tan(PI * 0.25 + radians(position.y) * 0.5))) * WORLD_SCALE * scale, 
-                position.z - 0.01,
+                (radians(position.x) + PI) * WORLD_SCALE, 
+                (PI - log(tan(PI * 0.25 + radians(position.y) * 0.5))) * WORLD_SCALE, 
+                position.z,
                 position.w
             );
         }
@@ -94,11 +93,7 @@
         const PI = Math.PI;
         const PI_4 = PI / 4;
         const DEGREES_TO_RADIANS = PI / 180;
-        const RADIANS_TO_DEGREES = 180 / PI;
         const TILE_SIZE = 512;
-        // Average circumference (40075 km equatorial, 40007 km meridional)
-        const EARTH_CIRCUMFERENCE = 40.03e6;
-        const ALTITUDE = 1.5;
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
@@ -151,6 +146,9 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
+        let viewMat = mat4.create();
+        let projMat = mat4.create();
+
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, triangleArray);
@@ -163,25 +161,27 @@
 
                 let scale = Math.pow(2, mapZoom);
                 let {lng, lat} = mapCenter;
-                let worldCenter = lngLatToWorld([lng, lat], scale, new Float32Array(3));
+                let worldCenter = lngLatToWorld([lng, lat], new Float32Array(3));
 
-                let viewMat = getViewMatrix({
+                getViewMatrix({
                     height: app.height,
                     pitch: mapPitch,
                     bearing: mapBearing,
                     center: worldCenter,
-                    flipY: true
+                    scale,
+                    flipY: true,
+                    out: viewMat
                 });
 
-                let projMat = getProjectionMatrix({
+                getProjectionMatrix({
                     width: app.width,
                     height: app.height,
                     pitch: mapPitch,
-                    near: 1.0
+                    scale,
+                    out: projMat
                 });
 
-                drawCall.uniform("scale", scale)
-                .uniform("projMat", projMat)
+                drawCall.uniform("projMat", projMat)
                 .uniform("viewMat", viewMat);
 
                 // DRAW
@@ -190,12 +190,11 @@
             });
         });
 
-        function lngLatToWorld([lng, lat], scale, out) {
-          scale *= TILE_SIZE;
+        function lngLatToWorld([lng, lat], out) {
           const lambda2 = lng * DEGREES_TO_RADIANS;
           const phi2 = lat * DEGREES_TO_RADIANS;
-          const x = scale * (lambda2 + PI) / (2 * PI);
-          const y = scale * (PI - Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
+          const x = TILE_SIZE * (lambda2 + PI) / (2 * PI);
+          const y = TILE_SIZE * (PI - Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
           
           out[0] = x;
           out[1] = y;
@@ -209,10 +208,10 @@
           height,
           pitch,
           bearing,
-          // Pre-calculated parameters
           center = null,
-          // Options
-          flipY = false
+          flipY = false,
+          scale,
+          out
         }) {
 
           // VIEW MATRIX: PROJECTS MERCATOR WORLD COORDINATES
@@ -220,33 +219,32 @@
           //
           // Note: As usual, matrix operation orders should be read in reverse
           // since vectors will be multiplied from the right during transformation
-          const vm = mat4.create();
+          mat4.identity(out);
 
           // Move camera to ALTITUDE (along the pitch & bearing direction)
-          mat4.translate(vm, vm, [0, 0, -1.5 * height]);
+          mat4.translate(out, out, [0, 0, -1.5 * height / scale]);
 
 
           // Rotate by bearing, and then by pitch (which tilts the view)
-          mat4.rotateX(vm, vm, -pitch * DEGREES_TO_RADIANS);
-          mat4.rotateZ(vm, vm, bearing * DEGREES_TO_RADIANS);
+          mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
+          mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
 
           if (flipY) {
-            mat4.scale(vm, vm, [1, -1, 1]);
+            mat4.scale(out, out, [1, -1, 1]);
           }
 
           if (center) {
-            mat4.translate(vm, vm, vec3.negate([], center));
+            mat4.translate(out, out, vec3.negate([], center));
           }
-
-          return vm;
         }
 
-        // PROJECTION MATRIX PARAMETERS
-        // Variable fov (in radians)
-        function getProjectionParameters({
+        function getProjectionMatrix({
           width,
           height,
           pitch = 0,
+          scale,
+          nearZoomZero = height,
+          out
         }) {
           const altitude = 1.5 * height;
           const pitchRadians = pitch * DEGREES_TO_RADIANS;
@@ -254,34 +252,19 @@
           const topHalfSurfaceDistance =
             Math.sin(halfFov) * altitude / Math.sin(Math.PI / 2 - pitchRadians - halfFov);
 
-          // Calculate z value of the farthest fragment that should be rendered.
-          const farZ = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
+          // Calculate z value of the farthest fragment that should be rendered (plus an epsilon).
+          const fov = 2 * halfFov;
+          const aspect = width / height;
+          const near = nearZoomZero / scale;
+          const far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
 
-          return {
-            fov: 2 * halfFov,
-            aspect: width / height,
-            far: farZ
-          };
-        }
-
-        function getProjectionMatrix({
-          width,
-          height,
-          pitch,
-          near
-        }) {
-          const {fov, aspect, far} =
-            getProjectionParameters({width, height, pitch});
-
-          const projectionMatrix = mat4.perspective(
-            mat4.create(),
+          mat4.perspective(
+            out,
             fov,      // fov in radians
             aspect,   // aspect ratio
             near,     // near plane
             far       // far plane
           );
-
-          return projectionMatrix;
         }
 
 
