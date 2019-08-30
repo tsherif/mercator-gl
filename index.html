@@ -59,8 +59,9 @@
         layout(location=0) in vec4 position;
         layout(location=1) in vec3 color;
 
-        uniform mat4 projMat;
         uniform mat4 viewMat;
+        uniform mat4 projMat;
+        // uniform mat4 viewProjMat;
 
         vec4 project_position(vec4 position) {
             return vec4(
@@ -74,7 +75,7 @@
         out vec3 vColor; 
         void main() {
             vColor = color;
-            gl_Position = projMat * viewMat * project_position(position);
+            gl_Position = projMat * (viewMat * project_position(position));
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -146,22 +147,23 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
-        let viewMat = mat4.create();
-        let projMat = mat4.create();
+        let viewMat = new Float32Array(16);
+        let projMat = new Float32Array(16);
+        let viewProjMat = mat4.create();
 
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, triangleArray);
 
             map.on("render", (e) => {
-                let mapCenter = map.painter.transform.center;
-                let mapZoom = map.painter.transform.zoom;
-                let mapPitch = map.painter.transform.pitch;
-                let mapBearing = map.painter.transform.bearing;
+                let mapCenter = map.getCenter();
+                let mapZoom = map.getZoom();
+                let mapPitch = map.getPitch();
+                let mapBearing = map.getBearing();
 
                 let scale = Math.pow(2, mapZoom);
                 let {lng, lat} = mapCenter;
-                let worldCenter = lngLatToWorld([lng, lat], new Float32Array(3));
+                let worldCenter = lngLatToWorld([lng, lat], new Float64Array(3));
 
                 getViewMatrix({
                     height: app.height,
@@ -180,8 +182,11 @@
                     out: projMat
                 });
 
-                drawCall.uniform("projMat", projMat)
-                .uniform("viewMat", viewMat);
+                mat4.multiply(viewProjMat, projMat, viewMat);
+
+                drawCall.uniform("viewMat", viewMat);
+                drawCall.uniform("projMat", projMat);
+                // drawCall.uniform("viewProjMat", viewProjMat);
 
                 // DRAW
                 app.clear();
@@ -212,6 +217,7 @@
           out
         }) {
 
+          const rootScale = Math.sqrt(scale);
           // VIEW MATRIX: PROJECTS MERCATOR WORLD COORDINATES
           // Note that mercator world coordinates typically need to be flipped
           //
@@ -221,7 +227,7 @@
 
           // Move camera to scaled position along the pitch & bearing direction
           // (1.5 * screen height in pixels at zoom 0)
-          mat4.translate(out, out, [0, 0, -1.5 * height / scale]);
+          mat4.translate(out, out, [0, 0, -1.5 * height / rootScale]);
 
           // Rotate by bearing, and then by pitch (which tilts the view)
           mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
@@ -232,6 +238,9 @@
           }
         }
 
+        // TODO scaling by FOV
+        // scaledFOV = 2 * atan(tan(0.5 * fov) / scale)
+
         function getProjectionMatrix({
           width,
           height,
@@ -240,16 +249,18 @@
           nearZoomZero = height,
           out
         }) {
+          const rootScale = Math.sqrt(scale);
           const altitude = 1.5 * height;
           const pitchRadians = pitch * DEGREES_TO_RADIANS;
-          const halfFov = 0.3217505543966422;   // Math.atan(0.5 * height / altitude) => Math.atan(1 / 3)
+          const halfFov = Math.atan(Math.tan(0.3217505543966422) / rootScale);   // Math.atan(0.5 * height / altitude) => Math.atan(1 / 3)
+
           const topHalfSurfaceDistance =
             Math.sin(halfFov) * altitude / Math.sin(Math.PI / 2 - pitchRadians - halfFov);
 
           // Calculate z value of the farthest fragment that should be rendered (plus an epsilon).
           const fov = 2 * halfFov;
           const aspect = width / height;
-          const near = nearZoomZero / scale;
+          const near = nearZoomZero / rootScale;
           const far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
 
           mat4.perspective(
