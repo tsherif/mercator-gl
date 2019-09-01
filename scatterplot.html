@@ -56,8 +56,7 @@
         const float PI = 3.1415926536;
         const float WORLD_SCALE = TILE_SIZE / (PI * 2.0);
         
-        layout(location=0) in vec4 position;
-        layout(location=1) in vec3 color;
+        layout(location=0) in vec3 positionRadius;
 
         uniform mat4 viewProjMat;
 
@@ -70,30 +69,32 @@
             );
         }
         
-        out vec3 vColor; 
         void main() {
-            vColor = color;
-            gl_Position = viewProjMat * vec4(project_position(position).xyz, 1.0);
+            vec4 position = vec4(positionRadius.xy, 0.0, 1.0);
+            float radius = positionRadius.z;
+            gl_Position = viewProjMat * project_position(position);
+            gl_PointSize = radius;
         }
     </script>
     <script type="shader/fs" id="fs">
         #version 300 es
         precision highp float;
-        
-        in vec3 vColor;
-        
+                
         out vec4 fragColor;
         void main() {
-            fragColor = vec4(vColor, 1.0);
+            if (length(gl_PointCoord * 2.0 - 1.0) > 1.0) {
+              discard;
+            }
+            fragColor = vec4(1.0, 0.5, 0.0, 1.0);
         }
     </script>
     <script>
-        const INITIAL_ZOOM = 15;
+        const INITIAL_ZOOM = 11.5;
         const PI = Math.PI;
         const PI_4 = PI / 4;
         const DEGREES_TO_RADIANS = PI / 180;
         const TILE_SIZE = 512;
-        const INITIAL_CENTER = [30.48688963987, 50.44638775297];
+        const INITIAL_CENTER = [-122.427, 37.752];
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
@@ -127,33 +128,37 @@
         let vsSource =  document.getElementById("vs").text.trim();
         let fsSource =  document.getElementById("fs").text.trim();
 
-        // GEOMETRY IN VERTEX BUFFERS
-        let positions = app.createVertexBuffer(PicoGL.FLOAT, 2, new Float32Array([
-            30.486165443435, 50.447380110621,
-            30.487361708656, 50.44718881482,
-            30.485859671608, 50.446396295406
-        ]));
+        Promise.all([
+          app.createPrograms([vsSource, fsSource]),
+          fetch('./data/sf.bike.parking.json').then(response => response.json())
+        ]).then(([[program], data]) => {
 
-        let colors = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 3, new Uint8Array([
-            255, 0, 0,
-            0, 255, 0,
-            0, 0, 255
-        ]));
+          let positionData = new Float32Array(data.length * 3);
 
-        // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
-        let triangleArray = app.createVertexArray()
-        .vertexAttributeBuffer(0, positions)
-        .vertexAttributeBuffer(1, colors, { normalized: true });
+          for (let i = 0; i < data.length; ++i) {
+            let pi = i * 3;
+            let coords = data[i].COORDINATES;
 
-        let viewMat = new Float64Array(16);
-        let projMat = new Float64Array(16);
-        let viewProjMat = mat4.create();
+            positionData[pi] =     coords[0];
+            positionData[pi + 1] = coords[1];
+            positionData[pi + 2] = data[i].SPACES;
+          }
 
-        let worldCenter = new Float64Array(3);
+          let positions = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData);
 
-        app.createPrograms([vsSource, fsSource]).then(function([program]) {
+          // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
+          let vertexArray = app.createVertexArray()
+          .vertexAttributeBuffer(0, positions);
+
+          let viewMat = new Float64Array(16);
+          let projMat = new Float64Array(16);
+          let viewProjMat = mat4.create();
+
+          let worldCenter = new Float64Array(3);
+
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
-            let drawCall = app.createDrawCall(program, triangleArray);
+            let drawCall = app.createDrawCall(program, vertexArray)
+            .primitive(PicoGL.POINTS);
 
             map.on("render", (e) => {
                 let mapCenter = map.getCenter();
