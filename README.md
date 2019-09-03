@@ -4,7 +4,7 @@ PicoMercator
 PicoMercator is a minimal library for doing web mercator projections in WebGL in a manner compatible with [Mapbox GL](https://github.com/mapbox/mapbox-gl-js). It provides GLSL code for projecting longitude/latitude coordinates into 3D space,
 and JavaScript functions to create view and projection matrices to overlay them onto a map rendered by Mapbox GL.
 
-Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element, and updating to match the view to the current map. PicoMercator provides a function `injectGLSLProjection` to insert a function `PICO_project_mercator` into vertex shader source code so the mercator projection can be done on the GPU.
+Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element, and updating to match the current map view. PicoMercator provides a function `injectGLSLProjection` to insert a function `PICO_project_mercator` into vertex shader source code so the mercator projection can be done on the GPU.
 
 ```JavaScript
 
