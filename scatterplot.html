@@ -53,10 +53,6 @@
     <script type="shader/vs" id="vs">
         #version 300 es
 
-        const float TILE_SIZE = 512.0;
-        const float PI = 3.1415926536;
-        const float WORLD_SCALE = TILE_SIZE / (PI * 2.0);
-        
         layout(location=0) in vec3 positionRadius;
         layout(location=1) in vec3 shapePosition;
 
@@ -68,21 +64,12 @@
 
         out vec3 vShapePosition;
 
-        vec4 project_position(vec4 position) {
-            return vec4(
-                (radians(position.x) + PI) * WORLD_SCALE, 
-                (PI + log(tan(PI * 0.25 + radians(position.y) * 0.5))) * WORLD_SCALE, 
-                position.z,
-                position.w
-            );
-        }
-        
         void main() {
             vShapePosition = shapePosition;
             vec4 position = vec4(positionRadius.xy, 0.0, 1.0);
             float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / scale, radiusLimits.y / scale);
             vec3 offset = shapePosition * radius;
-            gl_Position = viewProjMat * vec4(project_position(position).xyz + offset, 1.0);
+            gl_Position = viewProjMat * vec4(PICO_project_mercator(position).xyz + offset, 1.0);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -139,7 +126,7 @@
         utils.addTimerElement();
 
         // PROGRAM 
-        let vsSource =  document.getElementById("vs").text.trim();
+        let vsSource =  PicoMercator.injectGLSLProjection(document.getElementById("vs").text.trim());
         let fsSource =  document.getElementById("fs").text.trim();
 
         Promise.all([
@@ -197,20 +184,20 @@
 
                 let scale = Math.pow(2, mapZoom);
                 let {lng, lat} = mapCenter;
-                PicoMercator.lngLatToWorld(lng, lat, worldCenter);
 
                 PicoMercator.getViewMatrix({
-                    height: app.height,
+                    longitude: lng,
+                    latitude: lat,
                     pitch: mapPitch,
                     bearing: mapBearing,
-                    center: worldCenter,
+                    canvasHeight: app.height,
                     scale,
                     out: viewMat
                 });
 
                 PicoMercator.getProjectionMatrix({
-                    width: app.width,
-                    height: app.height,
+                    canvasWidth: app.width,
+                    canvasHeight: app.height,
                     pitch: mapPitch,
                     scale,
                     out: projMat

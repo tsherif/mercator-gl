@@ -4,7 +4,31 @@ const DEGREES_TO_RADIANS = PI / 180;
 const TILE_SIZE = 512;
 const EARTH_CIRCUMFERENCE = 40.03e6;
 
+const PROJECTION_GLSL = `
+const float PICO_TILE_SIZE = 512.0;
+const float PICO_PI = 3.1415926536;
+const float PICO_WORLD_SCALE = PICO_TILE_SIZE / (PICO_PI * 2.0);
+
+vec4 PICO_project_mercator(vec4 position) {
+    return vec4(
+        (radians(position.x) + PICO_PI) * PICO_WORLD_SCALE, 
+        (PICO_PI + log(tan(PICO_PI * 0.25 + radians(position.y) * 0.5))) * PICO_WORLD_SCALE, 
+        position.z,
+        position.w
+    );
+}
+`;
+
+let tempCenter = new Float32Array(3);
+
 export const PicoMercator = {
+    injectGLSLProjection: function(vsSource) {
+        let versionMatch = vsSource.match(/#version \d+(\s+es)?\s*\n/);
+        let versionLine = versionMatch ? versionMatch[0] : /^/;
+
+        return vsSource.replace(versionLine, versionLine + PROJECTION_GLSL);
+    },
+
     lngLatToWorld: function(lng, lat, out) {
         const lambda2 = lng * DEGREES_TO_RADIANS;
         const phi2 = lat * DEGREES_TO_RADIANS;
@@ -19,11 +43,12 @@ export const PicoMercator = {
     },
 
     getViewMatrix: function({
-        height,
+        longitude,
+        latitude,
+        scale,
         pitch,
         bearing,
-        center = null,
-        scale,
+        canvasHeight,
         out
     }) {
 
@@ -35,35 +60,35 @@ export const PicoMercator = {
         mat4.identity(out);
 
         // Move camera to scaled position along the pitch & bearing direction
-        // (1.5 * screen height in pixels at zoom 0)
-        mat4.translate(out, out, [0, 0, -1.5 * height / scale]);
+        // (1.5 * screen canvasHeight in pixels at zoom 0)
+        mat4.translate(out, out, [0, 0, -1.5 * canvasHeight / scale]);
 
         // Rotate by bearing, and then by pitch (which tilts the view)
         mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
         mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
 
-        if (center) {
-            mat4.translate(out, out, vec3.negate([], center));
-        }
+        this.lngLatToWorld(longitude, latitude, tempCenter);
+
+        mat4.translate(out, out, vec3.negate(tempCenter, tempCenter));
     },
 
     getProjectionMatrix: function({
-        width,
-        height,
+        canvasWidth,
+        canvasHeight,
         pitch = 0,
         scale,
-        nearZoomZero = height,
+        nearZoomZero = canvasHeight,
         out
     }) {
-        const altitude = 1.5 * height;
+        const altitude = 1.5 * canvasHeight;
         const pitchRadians = pitch * DEGREES_TO_RADIANS;
-        const halfFov = Math.atan(0.3217505543966422)   // Math.atan(0.5 * height / altitude) => Math.atan(1 / 3)
+        const halfFov = Math.atan(0.3217505543966422)   // Math.atan(0.5 * canvasHeight / altitude) => Math.atan(1 / 3)
 
         const topHalfSurfaceDistance = Math.sin(halfFov) * altitude / Math.sin(Math.PI / 2 - pitchRadians - halfFov);
 
         // Calculate z value of the farthest fragment that should be rendered (plus an epsilon).
         const fov = 2 * halfFov;
-        const aspect = width / height;
+        const aspect = canvasWidth / canvasHeight;
         const near = nearZoomZero / scale;
         const far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
 
