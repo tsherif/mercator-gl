@@ -60,7 +60,7 @@
         out vec3 vColor; 
         void main() {
             vColor = color;
-            gl_Position = viewProjMat * vec4(PICO_project_mercator(position).xyz, 1.0);
+            gl_Position = viewProjMat * PICO_project_mercator(position);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -146,13 +146,12 @@
                 let mapPitch = map.getPitch();
                 let mapBearing = map.getBearing();
 
-                let scale = Math.pow(2, mapZoom);
                 let {lng, lat} = mapCenter;
 
                 PicoMercator.getViewMatrix({
                     longitude: lng,
                     latitude: lat,
-                    scale,
+                    zoom: mapZoom,
                     pitch: mapPitch,
                     bearing: mapBearing,
                     canvasHeight: app.height,
@@ -163,7 +162,7 @@
                     canvasWidth: app.width,
                     canvasHeight: app.height,
                     pitch: mapPitch,
-                    scale,
+                    zoom: mapZoom,
                     out: projMat
                 });
 

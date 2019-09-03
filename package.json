@@ -1,0 +1,28 @@
+{
+  "name": "pico-mercator",
+  "version": "0.1.0",
+  "description": "A minimal library for MapboxGL-compatible web mercator projections",
+  "main": "src/pico-mercator.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tsherif/pico-mercator"
+  },
+  "author": {
+    "name": "Tarek Sherif",
+    "email": "tareksherif@pm.me",
+    "url": "http://tareksherif.net/"
+  },
+  "keywords": [
+    "mercator",
+    "mapbox",
+    "geospatial",
+    "visualization"
+    "webgl2",
+    "3d",
+    "picogl",
+  ],
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/tsherif/pico-mercator/issues"
+  }
+}

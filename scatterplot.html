@@ -165,7 +165,6 @@
 
           let worldCenter = new Float64Array(3);
           let radiusLimits = new Float32Array([1, 30]);
-          let scaledRadiusLimits = vec2.create();
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
@@ -182,7 +181,6 @@
                 let mapPitch = map.getPitch();
                 let mapBearing = map.getBearing();
 
-                let scale = Math.pow(2, mapZoom);
                 let {lng, lat} = mapCenter;
 
                 PicoMercator.getViewMatrix({
@@ -191,7 +189,7 @@
                     pitch: mapPitch,
                     bearing: mapBearing,
                     canvasHeight: app.height,
-                    scale,
+                    zoom: mapZoom,
                     out: viewMat
                 });
 
@@ -199,7 +197,7 @@
                     canvasWidth: app.width,
                     canvasHeight: app.height,
                     pitch: mapPitch,
-                    scale,
+                    zoom: mapZoom,
                     out: projMat
                 });
 
@@ -210,8 +208,8 @@
                 drawCall.uniform("viewProjMat", viewProjMat)
                 .uniform("pixelsPerMeter", pixelsPerMeter)
                 .uniform("radiusScale", 30)
-                .uniform("radiusLimits", vec2.scale(scaledRadiusLimits, radiusLimits, 1))
-                .uniform("scale", scale);
+                .uniform("radiusLimits", radiusLimits)
+                .uniform("scale", Math.pow(2, mapZoom));
 
                 // DRAW
                 app.clear();

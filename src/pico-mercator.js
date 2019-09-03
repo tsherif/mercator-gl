@@ -1,3 +1,32 @@
+///////////////////////////////////////////////////////////////////////////////////
+// The MIT License (MIT)
+//
+// Copyright (c) 2019 Tarek Sherif
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy of
+// this software and associated documentation files (the "Software"), to deal in
+// the Software without restriction, including without limitation the rights to
+// use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+// the Software, and to permit persons to whom the Software is furnished to do so,
+// subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in all
+// copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+// FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+// COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+// IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+// CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+///////////////////////////////////////////////////////////////////////////////////
+
+// GLSL projection code from deck.gl https://github.com/uber/deck.gl
+// Used under MIT licence
+//
+// JavaScript projection functions from view-mercator-project https://github.com/uber-common/viewport-mercator-project
+// Used under MIT license
+
 const PI = Math.PI;
 const PI_4 = PI / 4;
 const DEGREES_TO_RADIANS = PI / 180;
@@ -24,7 +53,7 @@ let tempCenter = new Float32Array(3);
 export const PicoMercator = {
     injectGLSLProjection: function(vsSource) {
         let versionMatch = vsSource.match(/#version \d+(\s+es)?\s*\n/);
-        let versionLine = versionMatch ? versionMatch[0] : /^/;
+        let versionLine = versionMatch ? versionMatch[0] : "";
 
         return vsSource.replace(versionLine, versionLine + PROJECTION_GLSL);
     },
@@ -45,13 +74,13 @@ export const PicoMercator = {
     getViewMatrix: function({
         longitude,
         latitude,
-        scale,
+        zoom,
         pitch,
         bearing,
         canvasHeight,
         out
     }) {
-
+        let scale = Math.pow(2, zoom);
         // VIEW MATRIX: PROJECTS MERCATOR WORLD COORDINATES
         // Note that mercator world coordinates typically need to be flipped
         //
@@ -76,10 +105,11 @@ export const PicoMercator = {
         canvasWidth,
         canvasHeight,
         pitch = 0,
-        scale,
+        zoom,
         nearZoomZero = canvasHeight,
         out
     }) {
+        let scale = Math.pow(2, zoom);
         const altitude = 1.5 * canvasHeight;
         const pitchRadians = pitch * DEGREES_TO_RADIANS;
         const halfFov = Math.atan(0.3217505543966422)   // Math.atan(0.5 * canvasHeight / altitude) => Math.atan(1 / 3)
