@@ -112,7 +112,7 @@ export const PicoMercator = {
         let scale = Math.pow(2, zoom);
         const altitude = 1.5 * canvasHeight;
         const pitchRadians = pitch * DEGREES_TO_RADIANS;
-        const halfFov = Math.atan(0.3217505543966422)   // Math.atan(0.5 * canvasHeight / altitude) => Math.atan(1 / 3)
+        const halfFov = Math.atan(1 / 3);   // Math.atan(0.5 * canvasHeight / altitude) => Math.atan(1 / 3)
 
         const topHalfSurfaceDistance = Math.sin(halfFov) * altitude / Math.sin(Math.PI / 2 - pitchRadians - halfFov);
 
