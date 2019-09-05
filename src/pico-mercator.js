@@ -33,10 +33,6 @@ const DEGREES_TO_RADIANS = PI / 180;
 const TILE_SIZE = 512;
 const EARTH_CIRCUMFERENCE = 40.03e6;
 
-// Identities
-// tan(x + y) = tan(x) + tan(y) / (1 - tan(x)tan(y))
-// log(x + y) = log(x) + log(1 + y / x)
-
 const PROJECTION_GLSL = `
 const float PICO_TILE_SIZE = 512.0;
 const float PICO_PI = 3.1415926536;
