@@ -51,22 +51,19 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
         let bearing = map.getBearing();
 
 
-        PicoMercator.getViewMatrix({
+        PicoMercator.viewMatrix(viewMatrix, {
             longitude,
             latitude,
-            zoom,
             pitch,
             bearing,
-            canvasHeight: canvas.height,
-            out: viewMatrix
+            canvasHeight: canvas.height
         });
 
-        PicoMercator.getProjectionMatrix({
+        PicoMercator.projectionMatrix(projectionMatrix, {
             zoom,
             pitch,
             canvasWidth: canvas.width,
-            canvasHeight: canvas.height,
-            out: projectionMatrix
+            canvasHeight: canvas.height
         });
 
         // Draw to canvas
