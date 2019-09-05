@@ -134,8 +134,6 @@
         let projMat = new Float64Array(16);
         let viewProjMat = mat4.create();
 
-        let worldCenter = new Float64Array(3);
-
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, triangleArray);
