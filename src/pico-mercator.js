@@ -33,6 +33,10 @@ const DEGREES_TO_RADIANS = PI / 180;
 const TILE_SIZE = 512;
 const EARTH_CIRCUMFERENCE = 40.03e6;
 
+// Identities
+// tan(x + y) = tan(x) + tan(y) / (1 - tan(x)tan(y))
+// log(x + y) = log(x) + log(1 + y / x)
+
 const PROJECTION_GLSL = `
 const float PICO_TILE_SIZE = 512.0;
 const float PICO_PI = 3.1415926536;
@@ -71,16 +75,13 @@ export const PicoMercator = {
         return out;
     },
 
-    getViewMatrix: function({
+    viewMatrix: function(out, {
         longitude,
         latitude,
-        zoom,
         pitch,
         bearing,
         canvasHeight,
-        out
     }) {
-        let scale = Math.pow(2, zoom);
         // VIEW MATRIX: PROJECTS MERCATOR WORLD COORDINATES
         // Note that mercator world coordinates typically need to be flipped
         //
@@ -90,7 +91,7 @@ export const PicoMercator = {
 
         // Move camera to scaled position along the pitch & bearing direction
         // (1.5 * screen canvasHeight in pixels at zoom 0)
-        mat4.translate(out, out, [0, 0, -1.5 * canvasHeight / scale]);
+        mat4.translate(out, out, [0, 0, -1.5 * canvasHeight]);
 
         // Rotate by bearing, and then by pitch (which tilts the view)
         mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
@@ -99,15 +100,16 @@ export const PicoMercator = {
         this.lngLatToWorld(longitude, latitude, tempCenter);
 
         mat4.translate(out, out, vec3.negate(tempCenter, tempCenter));
+
+        return out;
     },
 
-    getProjectionMatrix: function({
+    projectionMatrix: function(out, {
         canvasWidth,
         canvasHeight,
         pitch = 0,
         zoom,
-        nearZoomZero = canvasHeight,
-        out
+        near = canvasHeight,
     }) {
         let scale = Math.pow(2, zoom);
         const altitude = 1.5 * canvasHeight;
@@ -119,7 +121,6 @@ export const PicoMercator = {
         // Calculate z value of the farthest fragment that should be rendered (plus an epsilon).
         const fov = 2 * halfFov;
         const aspect = canvasWidth / canvasHeight;
-        const near = nearZoomZero / scale;
         const far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
 
         mat4.perspective(
@@ -129,9 +130,13 @@ export const PicoMercator = {
             near,     // near plane
             far       // far plane
         );
+
+        mat4.scale(out, out, [scale, scale, 1]);
+
+        return out;
     },
 
-    getPixelsPerMeter: function(latitude, longitude) {
+    pixelsPerMeter: function(latitude, longitude) {
       const latCosine = Math.cos(latitude * DEGREES_TO_RADIANS);
 
       /**

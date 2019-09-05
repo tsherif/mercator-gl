@@ -148,22 +148,19 @@
 
                 let {lng, lat} = mapCenter;
 
-                PicoMercator.getViewMatrix({
+                PicoMercator.viewMatrix(viewMat, {
                     longitude: lng,
                     latitude: lat,
-                    zoom: mapZoom,
                     pitch: mapPitch,
                     bearing: mapBearing,
                     canvasHeight: app.height,
-                    out: viewMat
                 });
 
-                PicoMercator.getProjectionMatrix({
+                PicoMercator.projectionMatrix(projMat, {
                     canvasWidth: app.width,
                     canvasHeight: app.height,
                     pitch: mapPitch,
                     zoom: mapZoom,
-                    out: projMat
                 });
 
                 mat4.multiply(viewProjMat, projMat, viewMat);
