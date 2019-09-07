@@ -71,6 +71,9 @@ vec4 PICO_worldToClip(mat4 viewProjectionMatrix, vec4 worldPosition) {
 `;
 
 let tempCenter = new Float64Array(4);
+let tempLngLatCenter = new Float32Array(2);
+let tempPixelsPerDegree = new Float32Array(2);
+let tempClipCenter = new Float32Array(4);
 
 export const PicoMercator = {
     injectGLSLProjection: function(vsSource) {
@@ -139,6 +142,23 @@ export const PicoMercator = {
         mat4.scale(out, out, [scale, scale, 1]);
 
         return out;
+    },
+
+    getUniforms(longitude, latitude, zoom, viewProjectionMatrix) {
+        tempLngLatCenter[0] = longitude;
+        tempLngLatCenter[1] = latitude;
+
+        this.pixelsPerDegree(tempPixelsPerDegree, latitude);
+
+        this.lngLatToWorld(tempCenter, longitude, latitude);
+        transformMat4(tempClipCenter, tempCenter, viewProjectionMatrix);
+
+        return {
+            PICO_lnglatCenter: tempLngLatCenter,
+            PICO_pixelsPerDegree: tempPixelsPerDegree,
+            PICO_clipCenter: tempClipCenter,
+            PICO_scale: Math.pow(2, zoom)
+        };
     },
 
     pixelsPerMeter: function(latitude) {

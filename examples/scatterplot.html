@@ -58,7 +58,6 @@
 
         uniform mat4 viewProjMat;
         uniform float pixelsPerMeter;
-        uniform float scale;
         uniform float radiusScale;
         uniform vec2 radiusLimits;
 
@@ -67,7 +66,7 @@
         void main() {
             vShapePosition = shapePosition;
             vec4 worldPosition = PICO_lngLatToWorld(positionRadius.xy);
-            float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / scale, radiusLimits.y / scale);
+            float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / PICO_scale, radiusLimits.y / PICO_scale);
             vec3 offset = shapePosition * radius;
             worldPosition.xyz += offset;
             gl_Position = PICO_worldToClip(viewProjMat, worldPosition);
@@ -204,8 +203,6 @@
 
                 let pixelsPerMeter = PicoMercator.pixelsPerMeter(lat);
                 pixelsPerDegree = PicoMercator.pixelsPerDegree(pixelsPerDegree, lat);
-                lnglatCenter[0] = lng;
-                lnglatCenter[1] = lat;
 
                 mat4.multiply(viewProjMat, projMat, viewMat);
 
@@ -214,12 +211,13 @@
                 drawCall.uniform("viewProjMat", viewProjMat)
                 .uniform("pixelsPerMeter", pixelsPerMeter)
                 .uniform("radiusScale", 30)
-                .uniform("radiusLimits", radiusLimits)
-                .uniform("scale", Math.pow(2, mapZoom))
-                .uniform("PICO_lnglatCenter", lnglatCenter)
-                .uniform("PICO_pixelsPerDegree", pixelsPerDegree)
-                .uniform("PICO_clipCenter", clipCenter)
-                .uniform("PICO_scale", Math.pow(2, mapZoom));
+                .uniform("radiusLimits", radiusLimits);
+
+                let uniforms = PicoMercator.getUniforms(lng, lat, mapZoom, viewProjMat);
+
+                for (let name in uniforms) {
+                    drawCall.uniform(name, uniforms[name])
+                }
 
                 // DRAW
                 app.clear();
