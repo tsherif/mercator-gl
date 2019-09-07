@@ -165,6 +165,8 @@
           let viewProjMat = mat4.create();
 
           let radiusLimits = new Float32Array([1, 30]);
+          let pixelsPerDegree = new Float32Array(2);
+          let lnglatCenter = new Float32Array(2);
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
@@ -198,7 +200,10 @@
                     zoom: mapZoom,
                 });
 
-                let pixelsPerMeter = PicoMercator.pixelsPerMeter(lat, lng);
+                let pixelsPerMeter = PicoMercator.pixelsPerMeter(lat);
+                pixelsPerDegree = PicoMercator.pixelsPerDegree(pixelsPerDegree, lat);
+                lnglatCenter[0] = lng;
+                lnglatCenter[1] = lat;
 
                 mat4.multiply(viewProjMat, projMat, viewMat);
 
@@ -206,7 +211,9 @@
                 .uniform("pixelsPerMeter", pixelsPerMeter)
                 .uniform("radiusScale", 30)
                 .uniform("radiusLimits", radiusLimits)
-                .uniform("scale", Math.pow(2, mapZoom));
+                .uniform("scale", Math.pow(2, mapZoom))
+                .uniform("PICO_lnglat_center", lnglatCenter)
+                .uniform("PICO_pixels_per_degree", pixelsPerDegree);
 
                 // DRAW
                 app.clear();

@@ -38,11 +38,21 @@ const float PICO_TILE_SIZE = 512.0;
 const float PICO_PI = 3.1415926536;
 const float PICO_WORLD_SCALE = PICO_TILE_SIZE / (PICO_PI * 2.0);
 
+uniform vec2 PICO_lnglat_center;
+uniform vec2 PICO_pixels_per_degree;
+
 vec2 PICO_project_mercator(vec2 position) {
-    return vec2(
-        (radians(position.x) + PICO_PI) * PICO_WORLD_SCALE,
-        (PICO_PI + log(tan(PICO_PI * 0.25 + radians(position.y) * 0.5))) * PICO_WORLD_SCALE
+    // return vec2(
+    //     (radians(position.x) + PICO_PI) * PICO_WORLD_SCALE,
+    //     (PICO_PI + log(tan(PICO_PI * 0.25 + radians(position.y) * 0.5))) * PICO_WORLD_SCALE
+    // );
+
+    vec2 mercator_center = vec2(
+        (radians(PICO_lnglat_center.x) + PICO_PI) * PICO_WORLD_SCALE,
+        (PICO_PI + log(tan(PICO_PI * 0.25 + radians(PICO_lnglat_center.y) * 0.5))) * PICO_WORLD_SCALE
     );
+
+    return mercator_center + (position - PICO_lnglat_center) * PICO_pixels_per_degree;
 }
 `;
 
@@ -130,13 +140,22 @@ export const PicoMercator = {
         return out;
     },
 
-    pixelsPerMeter: function(latitude, longitude) {
+    pixelsPerMeter: function(latitude) {
       const latCosine = Math.cos(latitude * DEGREES_TO_RADIANS);
 
       /**
        * Number of pixels occupied by one meter around current lat/lon:
        */
        return TILE_SIZE / EARTH_CIRCUMFERENCE / latCosine;
+    },
+
+    pixelsPerDegree: function(out, latitude) {
+      const latCosine = Math.cos(latitude * DEGREES_TO_RADIANS);
+
+      out[0] = TILE_SIZE / 360;
+      out[1] = out[0] / latCosine;
+
+      return out;
     }
 }
 
