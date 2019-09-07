@@ -145,21 +145,22 @@ export const PicoMercator = {
         return out;
     },
 
-    getUniforms(longitude, latitude, zoom, viewProjectionMatrix) {
+    forEachUniform(longitude, latitude, zoom, viewProjectionMatrix, fn) {
         tempLngLatCenter[0] = longitude;
         tempLngLatCenter[1] = latitude;
 
+        fn("PICO_lnglatCenter", tempLngLatCenter);
+
         this.pixelsPerDegree(tempPixelsPerDegree, latitude);
+
+        fn("PICO_pixelsPerDegree", tempPixelsPerDegree);
 
         this.lngLatToWorld(tempCenter, longitude, latitude);
         transformMat4(tempClipCenter, tempCenter, viewProjectionMatrix);
 
-        return {
-            PICO_lnglatCenter: tempLngLatCenter,
-            PICO_pixelsPerDegree: tempPixelsPerDegree,
-            PICO_clipCenter: tempClipCenter,
-            PICO_scale: Math.pow(2, zoom)
-        };
+        fn("PICO_clipCenter", tempClipCenter);
+
+        fn("PICO_scale", Math.pow(2, zoom));
     },
 
     pixelsPerMeter: function(latitude) {
