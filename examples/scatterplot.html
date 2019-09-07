@@ -1,4 +1,4 @@
-/<!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
     <title>PicoMercator</title>
@@ -189,6 +189,7 @@
                 viewMat = PicoMercator.viewMatrix(viewMat, {
                     longitude: lng,
                     latitude: lat,
+                    zoom: mapZoom,
                     pitch: mapPitch,
                     bearing: mapBearing,
                     canvasHeight: app.height,
@@ -202,11 +203,8 @@
                 });
 
                 let pixelsPerMeter = PicoMercator.pixelsPerMeter(lat);
-                pixelsPerDegree = PicoMercator.pixelsPerDegree(pixelsPerDegree, lat);
 
                 mat4.multiply(viewProjMat, projMat, viewMat);
-
-                clipCenter = PicoMercator.lngLatToClip(clipCenter, lng, lat, viewProjMat);
 
                 drawCall.uniform("viewProjMat", viewProjMat)
                 .uniform("pixelsPerMeter", pixelsPerMeter)

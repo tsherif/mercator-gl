@@ -86,10 +86,12 @@ export const PicoMercator = {
     viewMatrix: function(out, {
         longitude,
         latitude,
+        zoom,
         pitch,
         bearing,
         canvasHeight,
     }) {
+        let scale = Math.pow(2, zoom);
         // VIEW MATRIX: PROJECTS MERCATOR WORLD COORDINATES
         // Note that mercator world coordinates typically need to be flipped
         //
@@ -99,7 +101,7 @@ export const PicoMercator = {
 
         // Move camera to scaled position along the pitch & bearing direction
         // (1.5 * screen canvasHeight in pixels at zoom 0)
-        mat4.translate(out, out, [0, 0, -1.5 * canvasHeight]);
+        mat4.translate(out, out, [0, 0, -1.5 * canvasHeight / scale]);
 
         // Rotate by bearing, and then by pitch (which tilts the view)
         mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
@@ -117,7 +119,7 @@ export const PicoMercator = {
         canvasHeight,
         pitch = 0,
         zoom,
-        near = canvasHeight,
+        nearZoomZero = canvasHeight,
     }) {
         let scale = Math.pow(2, zoom);
         const altitude = 1.5 * canvasHeight;
@@ -129,6 +131,7 @@ export const PicoMercator = {
         // Calculate z value of the farthest fragment that should be rendered (plus an epsilon).
         const fov = 2 * halfFov;
         const aspect = canvasWidth / canvasHeight;
+        const near = nearZoomZero / scale;
         const far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
 
         mat4.perspective(
@@ -138,8 +141,6 @@ export const PicoMercator = {
             near,     // near plane
             far       // far plane
         );
-
-        mat4.scale(out, out, [scale, scale, 1]);
 
         return out;
     },
