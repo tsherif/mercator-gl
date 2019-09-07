@@ -114,13 +114,15 @@ export const PicoMercator = {
 
         // Move camera to scaled position along the pitch & bearing direction
         // (1.5 * screen canvasHeight in pixels at zoom 0)
-        mat4.translate(out, out, [0, 0, -1.5 * canvasHeight / scale]);
+        mat4.translate(out, out, [0, 0, -1.5 * canvasHeight]);
 
         // Rotate by bearing, and then by pitch (which tilts the view)
         mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
         mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
 
         this.lngLatToWorld(tempCenter64, longitude, latitude);
+
+        mat4.scale(out, out, [scale, scale, 1]);
 
         mat4.translate(out, out, vec3.negate(tempCenter64, tempCenter64));
 
@@ -132,7 +134,7 @@ export const PicoMercator = {
         canvasHeight,
         pitch = 0,
         zoom,
-        nearZoomZero = canvasHeight,
+        near = canvasHeight,
     }) {
         let scale = Math.pow(2, zoom);
         const altitude = 1.5 * canvasHeight;
@@ -144,7 +146,6 @@ export const PicoMercator = {
         // Calculate z value of the farthest fragment that should be rendered (plus an epsilon).
         const fov = 2 * halfFov;
         const aspect = canvasWidth / canvasHeight;
-        const near = nearZoomZero / scale;
         const far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
 
         mat4.perspective(
