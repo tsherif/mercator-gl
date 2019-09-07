@@ -42,48 +42,61 @@ uniform vec2 PICO_lnglatCenter;
 uniform vec2 PICO_pixelsPerDegree;
 uniform float PICO_scale;
 uniform vec4 PICO_clipCenter;
+uniform mat4 PICO_viewProjectioinMatrix;
 
-vec4 PICO_lngLatToWorld(vec2 position) {
+vec4 PICO_lngLatToWorld(vec2 lngLat) {
     vec2 mercatorPosition;
     if (PICO_scale < 2048.0) {
         mercatorPosition = vec2(
-            (radians(position.x) + PICO_PI) * PICO_WORLD_SCALE,
-            (PICO_PI + log(tan(PICO_PI * 0.25 + radians(position.y) * 0.5))) * PICO_WORLD_SCALE
+            (radians(lngLat.x) + PICO_PI) * PICO_WORLD_SCALE,
+            (PICO_PI + log(tan(PICO_PI * 0.25 + radians(lngLat.y) * 0.5))) * PICO_WORLD_SCALE
         );
     } else {
-        mercatorPosition = (position - PICO_lnglatCenter) * PICO_pixelsPerDegree;
+        mercatorPosition = (lngLat - PICO_lnglatCenter) * PICO_pixelsPerDegree;
     }
 
     return vec4(mercatorPosition, 0.0, 1.0);
 }
 
-vec4 PICO_worldToClip(mat4 viewProjectionMatrix, vec4 worldPosition) {
+vec4 PICO_worldToClip(vec4 worldPosition) {
     if (PICO_scale >= 2048.0) {
         worldPosition.w = 0.0;
     }
-    vec4 clipPosition = viewProjectionMatrix * worldPosition;
+    vec4 clipPosition = PICO_viewProjectioinMatrix * worldPosition;
     if (PICO_scale >= 2048.0) {
         clipPosition += PICO_clipCenter;
     }
 
     return clipPosition;
 }
+
+vec4 PICO_lngLatToClip(vec2 lngLat) {
+    return PICO_worldToClip(PICO_lngLatToWorld(lngLat));
+}
 `;
 
-let tempCenter = new Float64Array(4);
-let tempLngLatCenter = new Float32Array(2);
-let tempPixelsPerDegree = new Float32Array(2);
-let tempClipCenter = new Float32Array(4);
+// High-precision for intermediate calculations
+let tempCenter64 = new Float64Array(4);
+
+// Low-precision for uniforms
+let tempLngLatCenter32 = new Float32Array(2);
+let tempPixelsPerDegree32 = new Float32Array(2);
+let tempClipCenter32 = new Float32Array(4);
+let tempViewProjectionMatrix32 = new Float32Array(16);
 
 export const PicoMercator = {
-    injectGLSLProjection: function(vsSource) {
+    highPrecisionMat4() {
+        return mat4.identity(new Float64Array(16));
+    },
+
+    injectGLSLProjection(vsSource) {
         let versionMatch = vsSource.match(/#version \d+(\s+es)?\s*\n/);
         let versionLine = versionMatch ? versionMatch[0] : "";
 
         return vsSource.replace(versionLine, versionLine + PROJECTION_GLSL);
     },
 
-    viewMatrix: function(out, {
+    mapboxViewMatrix(out, {
         longitude,
         latitude,
         zoom,
@@ -107,14 +120,14 @@ export const PicoMercator = {
         mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
         mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
 
-        this.lngLatToWorld(tempCenter, longitude, latitude);
+        this.lngLatToWorld(tempCenter64, longitude, latitude);
 
-        mat4.translate(out, out, vec3.negate(tempCenter, tempCenter));
+        mat4.translate(out, out, vec3.negate(tempCenter64, tempCenter64));
 
         return out;
     },
 
-    projectionMatrix: function(out, {
+    mapboxProjectionMatrix(out, {
         canvasWidth,
         canvasHeight,
         pitch = 0,
@@ -145,25 +158,30 @@ export const PicoMercator = {
         return out;
     },
 
-    forEachUniform(longitude, latitude, zoom, viewProjectionMatrix, fn) {
-        tempLngLatCenter[0] = longitude;
-        tempLngLatCenter[1] = latitude;
+    forEachUniform(longitude, latitude, zoom, viewMatrix, projectionMatrix, fn) {
+        tempLngLatCenter32[0] = longitude;
+        tempLngLatCenter32[1] = latitude;
 
-        fn("PICO_lnglatCenter", tempLngLatCenter);
+        fn("PICO_lnglatCenter", tempLngLatCenter32);
 
-        this.pixelsPerDegree(tempPixelsPerDegree, latitude);
+        this.pixelsPerDegree(tempPixelsPerDegree32, latitude);
 
-        fn("PICO_pixelsPerDegree", tempPixelsPerDegree);
+        fn("PICO_pixelsPerDegree", tempPixelsPerDegree32);
 
-        this.lngLatToWorld(tempCenter, longitude, latitude);
-        transformMat4(tempClipCenter, tempCenter, viewProjectionMatrix);
+        this.lngLatToWorld(tempCenter64, longitude, latitude);
+        vec4.transformMat4(tempCenter64, tempCenter64, viewMatrix);
+        vec4.transformMat4(tempClipCenter32, tempCenter64, projectionMatrix);
 
-        fn("PICO_clipCenter", tempClipCenter);
+        fn("PICO_clipCenter", tempClipCenter32);
 
         fn("PICO_scale", Math.pow(2, zoom));
+
+        mat4.multiply(tempViewProjectionMatrix32, projectionMatrix, viewMatrix);
+
+        fn("PICO_viewProjectioinMatrix", tempViewProjectionMatrix32);
     },
 
-    pixelsPerMeter: function(latitude) {
+    pixelsPerMeter(latitude) {
       const latCosine = Math.cos(latitude * DEGREES_TO_RADIANS);
 
       /**
@@ -172,7 +190,7 @@ export const PicoMercator = {
        return TILE_SIZE / EARTH_CIRCUMFERENCE / latCosine;
     },
 
-    pixelsPerDegree: function(out, latitude) {
+    pixelsPerDegree(out, latitude) {
       const latCosine = Math.cos(latitude * DEGREES_TO_RADIANS);
 
       out[0] = TILE_SIZE / 360;
@@ -181,7 +199,7 @@ export const PicoMercator = {
       return out;
     },
 
-    lngLatToWorld: function(out, longitude, latitude) {
+    lngLatToWorld(out, longitude, latitude) {
         const lambda2 = longitude * DEGREES_TO_RADIANS;
         const phi2 = latitude * DEGREES_TO_RADIANS;
         const x = TILE_SIZE * (lambda2 + PI) / (2 * PI);
@@ -196,19 +214,9 @@ export const PicoMercator = {
     },
 
     lngLatToClip(out, longitude, latitude, viewProjMatrix) {
-        let worldCenter = this.lngLatToWorld(tempCenter, longitude, latitude);
-        transformMat4(out, worldCenter, viewProjMatrix);
+        let worldCenter = this.lngLatToWorld(tempCenter64, longitude, latitude);
+        vec4.vec4.transformMat4(out, worldCenter, viewProjMatrix);
 
         return out;
     }
 };
-
-// From gl-matrix
-function transformMat4(out, a, m) {
-  let x = a[0], y = a[1], z = a[2], w = a[3];
-  out[0] = m[0] * x + m[4] * y + m[8] * z + m[12] * w;
-  out[1] = m[1] * x + m[5] * y + m[9] * z + m[13] * w;
-  out[2] = m[2] * x + m[6] * y + m[10] * z + m[14] * w;
-  out[3] = m[3] * x + m[7] * y + m[11] * z + m[15] * w;
-  return out;
-}

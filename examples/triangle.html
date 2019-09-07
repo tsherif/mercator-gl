@@ -55,12 +55,10 @@
         layout(location=0) in vec2 position;
         layout(location=1) in vec3 color;
 
-        uniform mat4 viewProjMat;
-        
         out vec3 vColor; 
         void main() {
             vColor = color;
-            gl_Position = viewProjMat * vec4(PICO_project_mercator(position), 0.0, 1.0);
+            gl_Position =  PICO_lngLatToClip(position);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -130,9 +128,8 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
-        let viewMat = new Float64Array(16);
-        let projMat = new Float64Array(16);
-        let viewProjMat = mat4.create();
+        let viewMat = PicoMercator.highPrecisionMat4();
+        let projMat = PicoMercator.highPrecisionMat4();
 
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
@@ -146,24 +143,25 @@
 
                 let {lng, lat} = mapCenter;
 
-                PicoMercator.viewMatrix(viewMat, {
+                PicoMercator.mapboxViewMatrix(viewMat, {
                     longitude: lng,
                     latitude: lat,
+                    zoom: mapZoom,
                     pitch: mapPitch,
                     bearing: mapBearing,
                     canvasHeight: app.height,
                 });
 
-                PicoMercator.projectionMatrix(projMat, {
+                PicoMercator.mapboxProjectionMatrix(projMat, {
                     canvasWidth: app.width,
                     canvasHeight: app.height,
                     pitch: mapPitch,
                     zoom: mapZoom,
                 });
 
-                mat4.multiply(viewProjMat, projMat, viewMat);
-
-                drawCall.uniform("viewProjMat", viewProjMat);
+                PicoMercator.forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
+                    drawCall.uniform(name, value)
+                });
 
                 // DRAW
                 app.clear();
