@@ -66,10 +66,11 @@
 
         void main() {
             vShapePosition = shapePosition;
-            vec2 position = PICO_project_mercator(positionRadius.xy);
+            vec4 worldPosition = PICO_lngLatToWorld(positionRadius.xy);
             float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / scale, radiusLimits.y / scale);
             vec3 offset = shapePosition * radius;
-            gl_Position = viewProjMat * vec4(position + offset.xy, 0.0, 1.0);
+            worldPosition.xyz += offset;
+            gl_Position = PICO_worldToClip(viewProjMat, worldPosition);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -155,18 +156,19 @@
             ]));
           
 
-          // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
-          let vertexArray = app.createVertexArray()
-          .instanceAttributeBuffer(0, positions)
-          .vertexAttributeBuffer(1, shapePositions);
+            // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
+            let vertexArray = app.createVertexArray()
+            .instanceAttributeBuffer(0, positions)
+            .vertexAttributeBuffer(1, shapePositions);
+  
+            let viewMat = new Float64Array(16);
+            let projMat = new Float64Array(16);
+            let viewProjMat = new Float64Array(16);
 
-          let viewMat = new Float64Array(16);
-          let projMat = new Float64Array(16);
-          let viewProjMat = mat4.create();
-
-          let radiusLimits = new Float32Array([1, 30]);
-          let pixelsPerDegree = new Float32Array(2);
-          let lnglatCenter = new Float32Array(2);
+            let radiusLimits = new Float32Array([1, 30]);
+            let pixelsPerDegree = new Float32Array(2);
+            let lnglatCenter = new Float32Array(2);
+            let clipCenter = new Float32Array(4);
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
@@ -207,13 +209,17 @@
 
                 mat4.multiply(viewProjMat, projMat, viewMat);
 
+                clipCenter = PicoMercator.lngLatToClip(clipCenter, lng, lat, viewProjMat);
+
                 drawCall.uniform("viewProjMat", viewProjMat)
                 .uniform("pixelsPerMeter", pixelsPerMeter)
                 .uniform("radiusScale", 30)
                 .uniform("radiusLimits", radiusLimits)
                 .uniform("scale", Math.pow(2, mapZoom))
-                .uniform("PICO_lnglat_center", lnglatCenter)
-                .uniform("PICO_pixels_per_degree", pixelsPerDegree);
+                .uniform("PICO_lnglatCenter", lnglatCenter)
+                .uniform("PICO_pixelsPerDegree", pixelsPerDegree)
+                .uniform("PICO_clipCenter", clipCenter)
+                .uniform("PICO_scale", Math.pow(2, mapZoom));
 
                 // DRAW
                 app.clear();

@@ -38,25 +38,39 @@ const float PICO_TILE_SIZE = 512.0;
 const float PICO_PI = 3.1415926536;
 const float PICO_WORLD_SCALE = PICO_TILE_SIZE / (PICO_PI * 2.0);
 
-uniform vec2 PICO_lnglat_center;
-uniform vec2 PICO_pixels_per_degree;
+uniform vec2 PICO_lnglatCenter;
+uniform vec2 PICO_pixelsPerDegree;
+uniform float PICO_scale;
+uniform vec4 PICO_clipCenter;
 
-vec2 PICO_project_mercator(vec2 position) {
-    // return vec2(
-    //     (radians(position.x) + PICO_PI) * PICO_WORLD_SCALE,
-    //     (PICO_PI + log(tan(PICO_PI * 0.25 + radians(position.y) * 0.5))) * PICO_WORLD_SCALE
-    // );
+vec4 PICO_lngLatToWorld(vec2 position) {
+    vec2 mercatorPosition;
+    if (PICO_scale < 2048.0) {
+        mercatorPosition = vec2(
+            (radians(position.x) + PICO_PI) * PICO_WORLD_SCALE,
+            (PICO_PI + log(tan(PICO_PI * 0.25 + radians(position.y) * 0.5))) * PICO_WORLD_SCALE
+        );
+    } else {
+        mercatorPosition = (position - PICO_lnglatCenter) * PICO_pixelsPerDegree;
+    }
 
-    vec2 mercator_center = vec2(
-        (radians(PICO_lnglat_center.x) + PICO_PI) * PICO_WORLD_SCALE,
-        (PICO_PI + log(tan(PICO_PI * 0.25 + radians(PICO_lnglat_center.y) * 0.5))) * PICO_WORLD_SCALE
-    );
+    return vec4(mercatorPosition, 0.0, 1.0);
+}
 
-    return mercator_center + (position - PICO_lnglat_center) * PICO_pixels_per_degree;
+vec4 PICO_worldToClip(mat4 viewProjectionMatrix, vec4 worldPosition) {
+    if (PICO_scale >= 2048.0) {
+        worldPosition.w = 0.0;
+    }
+    vec4 clipPosition = viewProjectionMatrix * worldPosition;
+    if (PICO_scale >= 2048.0) {
+        clipPosition += PICO_clipCenter;
+    }
+
+    return clipPosition;
 }
 `;
 
-let tempCenter = new Float32Array(3);
+let tempCenter = new Float64Array(4);
 
 export const PicoMercator = {
     injectGLSLProjection: function(vsSource) {
@@ -64,19 +78,6 @@ export const PicoMercator = {
         let versionLine = versionMatch ? versionMatch[0] : "";
 
         return vsSource.replace(versionLine, versionLine + PROJECTION_GLSL);
-    },
-
-    lngLatToWorld: function(lng, lat, out) {
-        const lambda2 = lng * DEGREES_TO_RADIANS;
-        const phi2 = lat * DEGREES_TO_RADIANS;
-        const x = TILE_SIZE * (lambda2 + PI) / (2 * PI);
-        const y = TILE_SIZE * (PI + Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
-
-        out[0] = x;
-        out[1] = y;
-        out[2] = 0;
-
-        return out;
     },
 
     viewMatrix: function(out, {
@@ -101,7 +102,7 @@ export const PicoMercator = {
         mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
         mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
 
-        this.lngLatToWorld(longitude, latitude, tempCenter);
+        this.lngLatToWorld(tempCenter, longitude, latitude);
 
         mat4.translate(out, out, vec3.negate(tempCenter, tempCenter));
 
@@ -156,6 +157,36 @@ export const PicoMercator = {
       out[1] = out[0] / latCosine;
 
       return out;
-    }
-}
+    },
 
+    lngLatToWorld: function(out, longitude, latitude) {
+        const lambda2 = longitude * DEGREES_TO_RADIANS;
+        const phi2 = latitude * DEGREES_TO_RADIANS;
+        const x = TILE_SIZE * (lambda2 + PI) / (2 * PI);
+        const y = TILE_SIZE * (PI + Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
+
+        out[0] = x;
+        out[1] = y;
+        out[2] = 0;
+        out[3] = 1;
+
+        return out;
+    },
+
+    lngLatToClip(out, longitude, latitude, viewProjMatrix) {
+        let worldCenter = this.lngLatToWorld(tempCenter, longitude, latitude);
+        transformMat4(out, worldCenter, viewProjMatrix);
+
+        return out;
+    }
+};
+
+// From gl-matrix
+function transformMat4(out, a, m) {
+  let x = a[0], y = a[1], z = a[2], w = a[3];
+  out[0] = m[0] * x + m[4] * y + m[8] * z + m[12] * w;
+  out[1] = m[1] * x + m[5] * y + m[9] * z + m[13] * w;
+  out[2] = m[2] * x + m[6] * y + m[10] * z + m[14] * w;
+  out[3] = m[3] * x + m[7] * y + m[11] * z + m[15] * w;
+  return out;
+}
