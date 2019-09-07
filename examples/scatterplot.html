@@ -56,9 +56,7 @@
         layout(location=0) in vec3 positionRadius;
         layout(location=1) in vec3 shapePosition;
 
-        uniform mat4 viewProjMat;
         uniform float pixelsPerMeter;
-        uniform float scale;
         uniform float radiusScale;
         uniform vec2 radiusLimits;
 
@@ -66,10 +64,11 @@
 
         void main() {
             vShapePosition = shapePosition;
-            vec4 position = vec4(positionRadius.xy, 0.0, 1.0);
-            float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / scale, radiusLimits.y / scale);
+            vec4 worldPosition = PICO_lngLatToWorld(positionRadius.xy);
+            float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / PICO_scale, radiusLimits.y / PICO_scale);
             vec3 offset = shapePosition * radius;
-            gl_Position = viewProjMat * vec4(PICO_project_mercator(position).xyz + offset, 1.0);
+            worldPosition.xyz += offset;
+            gl_Position = PICO_worldToClip(worldPosition);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -155,16 +154,14 @@
             ]));
           
 
-          // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
-          let vertexArray = app.createVertexArray()
-          .instanceAttributeBuffer(0, positions)
-          .vertexAttributeBuffer(1, shapePositions);
-
-          let viewMat = new Float64Array(16);
-          let projMat = new Float64Array(16);
-          let viewProjMat = mat4.create();
-
-          let radiusLimits = new Float32Array([1, 30]);
+            // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
+            let vertexArray = app.createVertexArray()
+            .instanceAttributeBuffer(0, positions)
+            .vertexAttributeBuffer(1, shapePositions);
+  
+            let viewMat = PicoMercator.highPrecisionMat4();
+            let projMat = PicoMercator.highPrecisionMat4();
+            let radiusLimits = new Float32Array([1, 30]);
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
@@ -183,30 +180,31 @@
 
                 let {lng, lat} = mapCenter;
 
-                viewMat = PicoMercator.viewMatrix(viewMat, {
+                viewMat = PicoMercator.mapboxViewMatrix(viewMat, {
                     longitude: lng,
                     latitude: lat,
+                    zoom: mapZoom,
                     pitch: mapPitch,
                     bearing: mapBearing,
                     canvasHeight: app.height,
                 });
 
-                projMat = PicoMercator.projectionMatrix(projMat, {
+                projMat = PicoMercator.mapboxProjectionMatrix(projMat, {
                     canvasWidth: app.width,
                     canvasHeight: app.height,
                     pitch: mapPitch,
                     zoom: mapZoom,
                 });
 
-                let pixelsPerMeter = PicoMercator.pixelsPerMeter(lat, lng);
+                let pixelsPerMeter = PicoMercator.pixelsPerMeter(lat);
 
-                mat4.multiply(viewProjMat, projMat, viewMat);
-
-                drawCall.uniform("viewProjMat", viewProjMat)
-                .uniform("pixelsPerMeter", pixelsPerMeter)
+                drawCall.uniform("pixelsPerMeter", pixelsPerMeter)
                 .uniform("radiusScale", 30)
-                .uniform("radiusLimits", radiusLimits)
-                .uniform("scale", Math.pow(2, mapZoom));
+                .uniform("radiusLimits", radiusLimits);
+
+                PicoMercator.forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
+                    drawCall.uniform(name, value)
+                });
 
                 // DRAW
                 app.clear();
