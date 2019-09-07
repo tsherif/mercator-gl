@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+/<!DOCTYPE html>
 <html>
 <head>
     <title>PicoMercator</title>
@@ -66,10 +66,10 @@
 
         void main() {
             vShapePosition = shapePosition;
-            vec4 position = vec4(positionRadius.xy, 0.0, 1.0);
+            vec2 position = PICO_project_mercator(positionRadius.xy);
             float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / scale, radiusLimits.y / scale);
             vec3 offset = shapePosition * radius;
-            gl_Position = viewProjMat * vec4(PICO_project_mercator(position).xyz + offset, 1.0);
+            gl_Position = viewProjMat * vec4(position + offset.xy, 0.0, 1.0);
         }
     </script>
     <script type="shader/fs" id="fs">

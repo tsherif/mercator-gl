@@ -38,12 +38,10 @@ const float PICO_TILE_SIZE = 512.0;
 const float PICO_PI = 3.1415926536;
 const float PICO_WORLD_SCALE = PICO_TILE_SIZE / (PICO_PI * 2.0);
 
-vec4 PICO_project_mercator(vec4 position) {
-    return vec4(
-        (radians(position.x) + PICO_PI) * PICO_WORLD_SCALE, 
-        (PICO_PI + log(tan(PICO_PI * 0.25 + radians(position.y) * 0.5))) * PICO_WORLD_SCALE, 
-        position.z,
-        position.w
+vec2 PICO_project_mercator(vec2 position) {
+    return vec2(
+        (radians(position.x) + PICO_PI) * PICO_WORLD_SCALE,
+        (PICO_PI + log(tan(PICO_PI * 0.25 + radians(position.y) * 0.5))) * PICO_WORLD_SCALE
     );
 }
 `;
@@ -63,7 +61,7 @@ export const PicoMercator = {
         const phi2 = lat * DEGREES_TO_RADIANS;
         const x = TILE_SIZE * (lambda2 + PI) / (2 * PI);
         const y = TILE_SIZE * (PI + Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
-        
+
         out[0] = x;
         out[1] = y;
         out[2] = 0;
@@ -139,6 +137,6 @@ export const PicoMercator = {
        * Number of pixels occupied by one meter around current lat/lon:
        */
        return TILE_SIZE / EARTH_CIRCUMFERENCE / latCosine;
-    }  
+    }
 }
 
