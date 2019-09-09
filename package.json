@@ -16,10 +16,10 @@
     "mercator",
     "mapbox",
     "geospatial",
-    "visualization"
+    "visualization",
     "webgl2",
     "3d",
-    "picogl",
+    "picogl"
   ],
   "license": "MIT",
   "bugs": {
