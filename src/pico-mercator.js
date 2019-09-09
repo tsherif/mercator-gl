@@ -159,27 +159,25 @@ export const PicoMercator = {
         return out;
     },
 
-    forEachUniform(longitude, latitude, zoom, viewMatrix, projectionMatrix, fn) {
+    getUniforms(longitude, latitude, zoom, viewMatrix, projectionMatrix) {
         tempLngLatCenter32[0] = longitude;
         tempLngLatCenter32[1] = latitude;
 
-        fn("PICO_lngLatCenter", tempLngLatCenter32);
-
         this.pixelsPerDegree(tempPixelsPerDegree32, latitude);
-
-        fn("PICO_pixelsPerDegree", tempPixelsPerDegree32);
 
         this.lngLatToWorld(tempCenter64, longitude, latitude);
         vec4.transformMat4(tempCenter64, tempCenter64, viewMatrix);
         vec4.transformMat4(tempClipCenter32, tempCenter64, projectionMatrix);
 
-        fn("PICO_clipCenter", tempClipCenter32);
-
-        fn("PICO_scale", Math.pow(2, zoom));
-
         mat4.multiply(tempViewProjectionMatrix32, projectionMatrix, viewMatrix);
 
-        fn("PICO_viewProjectionMatrix", tempViewProjectionMatrix32);
+        return {
+            PICO_scale: Math.pow(2, zoom),
+            PICO_lngLatCenter: tempLngLatCenter32,
+            PICO_pixelsPerDegree: tempPixelsPerDegree32,
+            PICO_clipCenter: tempClipCenter32,
+            PICO_viewProjectionMatrix: tempViewProjectionMatrix32
+        }
     },
 
     pixelsPerMeter(latitude) {

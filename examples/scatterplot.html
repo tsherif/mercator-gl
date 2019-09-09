@@ -202,8 +202,9 @@
                 .uniform("radiusScale", 30)
                 .uniform("radiusLimits", radiusLimits);
 
-                PicoMercator.forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
-                    drawCall.uniform(name, value)
+                let picoUniforms = PicoMercator.getUniforms(lng, lat, mapZoom, viewMat, projMat)
+                Object.keys(picoUniforms).forEach((name) => {
+                    drawCall.uniform(name, picoUniforms[name]);
                 });
 
                 // DRAW
@@ -213,10 +214,6 @@
                 timer.end();
             });
         });
-
-        
-
-
     </script>
 </body>
 </html>

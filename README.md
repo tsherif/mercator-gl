@@ -69,12 +69,10 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
             canvasHeight: canvas.height
         });
 
-        PicoMercator.forEachUniform(lng, lat, zoom, viewMatrix, projectionMatrix, (name, value) => {
-            // Set PicoMercator uniforms
-        });
+        // PicoMercator uniforms to be set
+        let uniforms = PicoMercator.getUniforms(lng, lat, zoom, viewMatrix, projectionMatrix);
 
         // Draw to canvas
     });
 
-``` 
-
+```

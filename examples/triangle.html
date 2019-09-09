@@ -159,8 +159,9 @@
                     zoom: mapZoom,
                 });
 
-                PicoMercator.forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
-                    drawCall.uniform(name, value)
+                let picoUniforms = PicoMercator.getUniforms(lng, lat, mapZoom, viewMat, projMat)
+                Object.keys(picoUniforms).forEach((name) => {
+                    drawCall.uniform(name, picoUniforms[name]);
                 });
 
                 // DRAW
@@ -168,8 +169,6 @@
                 drawCall.draw();
             });
         });
-
-
     </script>
 </body>
 </html>
