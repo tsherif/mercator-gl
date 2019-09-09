@@ -27,6 +27,18 @@
 // JavaScript projection functions from view-mercator-project https://github.com/uber-common/viewport-mercator-project
 // Used under MIT license
 
+import {
+    mat4_identity,
+    mat4_translate,
+    mat4_scale,
+    mat4_rotateX,
+    mat4_rotateZ,
+    mat4_perspective,
+    mat4_multiply,
+    vec3_negate,
+    vec4_transformMat4
+} from './lib/gl-matrix.js'
+
 const PI = Math.PI;
 const PI_4 = PI / 4;
 const DEGREES_TO_RADIANS = PI / 180;
@@ -77,6 +89,8 @@ vec4 PICO_lngLatToClip(vec2 lngLatPosition) {
 
 // High-precision for intermediate calculations
 let tempCenter64 = new Float64Array(4);
+let tempViewTranslation64 = new Float64Array(3);
+let tempViewScale64 = new Float64Array(3);
 
 // Low-precision for uniforms
 let tempLngLatCenter32 = new Float32Array(2);
@@ -85,7 +99,7 @@ let tempClipCenter32 = new Float32Array(4);
 let tempViewProjectionMatrix32 = new Float32Array(16);
 
 export function PICO_highPrecisionMat4() {
-    return mat4.identity(new Float64Array(16));
+    return mat4_identity(new Float64Array(16));
 }
 
 export function PICO_injectGLSLProjection(vsSource) {
@@ -109,21 +123,25 @@ export function PICO_mapboxViewMatrix(out, {
     //
     // Note: As usual, matrix operation orders should be read in reverse
     // since vectors will be multiplied from the right during transformation
-    mat4.identity(out);
+    mat4_identity(out);
 
     // Move camera to scaled position along the pitch & bearing direction
     // (1.5 * screen canvasHeight in pixels at zoom 0)
-    mat4.translate(out, out, [0, 0, -1.5 * canvasHeight]);
+    tempViewTranslation64[2] = -1.5 * canvasHeight;
+    mat4_translate(out, out, tempViewTranslation64);
 
     // Rotate by bearing, and then by pitch (which tilts the view)
-    mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
-    mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
+    mat4_rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
+    mat4_rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
 
     PICO_lngLatToWorld(tempCenter64, longitude, latitude);
 
-    mat4.scale(out, out, [scale, scale, 1]);
+    tempViewScale64[0] = scale;
+    tempViewScale64[1] = scale;
+    tempViewScale64[2] = 1;
+    mat4_scale(out, out, tempViewScale64);
 
-    mat4.translate(out, out, vec3.negate(tempCenter64, tempCenter64));
+    mat4_translate(out, out, vec3_negate(tempCenter64, tempCenter64));
 
     return out;
 }
@@ -147,7 +165,7 @@ export function PICO_mapboxProjectionMatrix(out, {
     let aspect = canvasWidth / canvasHeight;
     let far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
 
-    mat4.perspective(
+    mat4_perspective(
         out,
         fov,      // fov in radians
         aspect,   // aspect ratio
@@ -174,7 +192,7 @@ export function PICO_forEachUniform(longitude, latitude, zoom, viewMatrix, proje
 
     fn("PICO_scale", Math.pow(2, zoom));
 
-    mat4.multiply(tempViewProjectionMatrix32, projectionMatrix, viewMatrix);
+    mat4_multiply(tempViewProjectionMatrix32, projectionMatrix, viewMatrix);
 
     fn("PICO_viewProjectionMatrix", tempViewProjectionMatrix32);
 }
@@ -208,8 +226,8 @@ export function PICO_lngLatToWorld(out, longitude, latitude) {
 }
 
 export function PICO_worldToClip(out, worldPosition, viewMatrix, projectionMatrix) {
-    vec4.transformMat4(tempCenter64, worldPosition, viewMatrix);
-    vec4.transformMat4(out, tempCenter64, projectionMatrix);
+    vec4_transformMat4(tempCenter64, worldPosition, viewMatrix);
+    vec4_transformMat4(out, tempCenter64, projectionMatrix);
 
     return out;
 }
