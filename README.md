@@ -36,14 +36,14 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
 
 
     // Insert function PICO_project_mercator into vertex shader
-    let vertexShaderSource = PicoMercator.injectGLSLProjection(vs);
+    let vertexShaderSource = PICO_injectGLSLProjection(vs);
     let fragmentShaderSource =  fs;
     // Create WebGL program from vertexShaderSource and fragmentShaderSource
 
     // Use 64-bit precision matrices to avoid numerical instability 
     // in intermediate calculations
-    let viewMatrix = PicoMercator.highPrecisionMat4();
-    let projectionMatrix = PicoMercator.highPrecisionMat4();
+    let viewMatrix = PICO_highPrecisionMat4();
+    let projectionMatrix = PICO_highPrecisionMat4();
 
     map.on("render", (e) => {
         let {lng, lat} = map.getCenter();
@@ -52,7 +52,7 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
         let bearing = map.getBearing();
 
 
-        PicoMercator.mapboxViewMatrix(viewMatrix, {
+        PICO_mapboxViewMatrix(viewMatrix, {
             longitude: lng,
             latitude: lat,
             zoom,
@@ -61,7 +61,7 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
             canvasHeight: canvas.height
         });
 
-        PicoMercator.mapboxProjectionMatrix(projectionMatrix, {
+        PICO_mapboxProjectionMatrix(projectionMatrix, {
             zoom,
             pitch,
             near, // Distance to near plane, far is calculated automatically
@@ -69,7 +69,7 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
             canvasHeight: canvas.height
         });
 
-        PicoMercator.forEachUniform(lng, lat, zoom, viewMatrix, projectionMatrix, (name, value) => {
+        PICO_forEachUniform(lng, lat, zoom, viewMatrix, projectionMatrix, (name, value) => {
             // Set PicoMercator uniforms
         });
 
