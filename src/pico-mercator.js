@@ -212,7 +212,7 @@ export const PicoMercator = {
 
     lngLatToClip(out, longitude, latitude, viewProjMatrix) {
         let worldCenter = this.lngLatToWorld(tempCenter64, longitude, latitude);
-        vec4.vec4.transformMat4(out, worldCenter, viewProjMatrix);
+        vec4.transformMat4(out, worldCenter, viewProjMatrix);
 
         return out;
     }
