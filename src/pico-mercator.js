@@ -84,136 +84,139 @@ let tempPixelsPerDegree32 = new Float32Array(2);
 let tempClipCenter32 = new Float32Array(4);
 let tempViewProjectionMatrix32 = new Float32Array(16);
 
-export const PicoMercator = {
-    highPrecisionMat4() {
-        return mat4.identity(new Float64Array(16));
-    },
+export function PICO_highPrecisionMat4() {
+    return mat4.identity(new Float64Array(16));
+}
 
-    injectGLSLProjection(vsSource) {
-        let versionMatch = vsSource.match(/#version \d+(\s+es)?\s*\n/);
-        let versionLine = versionMatch ? versionMatch[0] : "";
+export function PICO_injectGLSLProjection(vsSource) {
+    let versionMatch = vsSource.match(/#version \d+(\s+es)?\s*\n/);
+    let versionLine = versionMatch ? versionMatch[0] : "";
 
-        return vsSource.replace(versionLine, versionLine + PROJECTION_GLSL);
-    },
+    return vsSource.replace(versionLine, versionLine + PROJECTION_GLSL);
+}
 
-    mapboxViewMatrix(out, {
-        longitude,
-        latitude,
-        zoom,
-        pitch,
-        bearing,
-        canvasHeight,
-    }) {
-        let scale = Math.pow(2, zoom);
-        // VIEW MATRIX: PROJECTS MERCATOR WORLD COORDINATES
-        // Note that mercator world coordinates typically need to be flipped
-        //
-        // Note: As usual, matrix operation orders should be read in reverse
-        // since vectors will be multiplied from the right during transformation
-        mat4.identity(out);
+export function PICO_mapboxViewMatrix(out, {
+    longitude,
+    latitude,
+    zoom,
+    pitch,
+    bearing,
+    canvasHeight,
+}) {
+    let scale = Math.pow(2, zoom);
+    // VIEW MATRIX: PROJECTS MERCATOR WORLD COORDINATES
+    // Note that mercator world coordinates typically need to be flipped
+    //
+    // Note: As usual, matrix operation orders should be read in reverse
+    // since vectors will be multiplied from the right during transformation
+    mat4.identity(out);
 
-        // Move camera to scaled position along the pitch & bearing direction
-        // (1.5 * screen canvasHeight in pixels at zoom 0)
-        mat4.translate(out, out, [0, 0, -1.5 * canvasHeight]);
+    // Move camera to scaled position along the pitch & bearing direction
+    // (1.5 * screen canvasHeight in pixels at zoom 0)
+    mat4.translate(out, out, [0, 0, -1.5 * canvasHeight]);
 
-        // Rotate by bearing, and then by pitch (which tilts the view)
-        mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
-        mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
+    // Rotate by bearing, and then by pitch (which tilts the view)
+    mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
+    mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
 
-        this.lngLatToWorld(tempCenter64, longitude, latitude);
+    PICO_lngLatToWorld(tempCenter64, longitude, latitude);
 
-        mat4.scale(out, out, [scale, scale, 1]);
+    mat4.scale(out, out, [scale, scale, 1]);
 
-        mat4.translate(out, out, vec3.negate(tempCenter64, tempCenter64));
+    mat4.translate(out, out, vec3.negate(tempCenter64, tempCenter64));
 
-        return out;
-    },
+    return out;
+}
 
-    mapboxProjectionMatrix(out, {
-        pitch = 0,
-        zoom,
-        canvasWidth,
-        canvasHeight,
-        near = canvasHeight
-    }) {
-        let scale = Math.pow(2, zoom);
-        let altitude = 1.5 * canvasHeight;
-        let pitchRadians = pitch * DEGREES_TO_RADIANS;
-        let halfFov = Math.atan(1 / 3);   // Math.atan(0.5 * canvasHeight / altitude) => Math.atan(1 / 3)
+export function PICO_mapboxProjectionMatrix(out, {
+    pitch = 0,
+    zoom,
+    canvasWidth,
+    canvasHeight,
+    near = canvasHeight
+}) {
+    let scale = Math.pow(2, zoom);
+    let altitude = 1.5 * canvasHeight;
+    let pitchRadians = pitch * DEGREES_TO_RADIANS;
+    let halfFov = Math.atan(1 / 3);   // Math.atan(0.5 * canvasHeight / altitude) => Math.atan(1 / 3)
 
-        let topHalfSurfaceDistance = Math.sin(halfFov) * altitude / Math.sin(Math.PI / 2 - pitchRadians - halfFov);
+    let topHalfSurfaceDistance = Math.sin(halfFov) * altitude / Math.sin(Math.PI / 2 - pitchRadians - halfFov);
 
-        // Calculate z value of the farthest fragment that should be rendered (plus an epsilon).
-        let fov = 2 * halfFov;
-        let aspect = canvasWidth / canvasHeight;
-        let far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
+    // Calculate z value of the farthest fragment that should be rendered (plus an epsilon).
+    let fov = 2 * halfFov;
+    let aspect = canvasWidth / canvasHeight;
+    let far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
 
-        mat4.perspective(
-            out,
-            fov,      // fov in radians
-            aspect,   // aspect ratio
-            near,     // near plane
-            far       // far plane
-        );
+    mat4.perspective(
+        out,
+        fov,      // fov in radians
+        aspect,   // aspect ratio
+        near,     // near plane
+        far       // far plane
+    );
 
-        return out;
-    },
+    return out;
+}
 
-    forEachUniform(longitude, latitude, zoom, viewMatrix, projectionMatrix, fn) {
-        tempLngLatCenter32[0] = longitude;
-        tempLngLatCenter32[1] = latitude;
+export function PICO_forEachUniform(longitude, latitude, zoom, viewMatrix, projectionMatrix, fn) {
+    tempLngLatCenter32[0] = longitude;
+    tempLngLatCenter32[1] = latitude;
 
-        fn("PICO_lngLatCenter", tempLngLatCenter32);
+    fn("PICO_lngLatCenter", tempLngLatCenter32);
 
-        this.pixelsPerDegree(tempPixelsPerDegree32, latitude);
+    PICO_pixelsPerDegree(tempPixelsPerDegree32, latitude);
 
-        fn("PICO_pixelsPerDegree", tempPixelsPerDegree32);
+    fn("PICO_pixelsPerDegree", tempPixelsPerDegree32);
 
-        this.lngLatToWorld(tempCenter64, longitude, latitude);
-        vec4.transformMat4(tempCenter64, tempCenter64, viewMatrix);
-        vec4.transformMat4(tempClipCenter32, tempCenter64, projectionMatrix);
+    PICO_lngLatToClip(tempClipCenter32, longitude, latitude, viewMatrix, projectionMatrix);
 
-        fn("PICO_clipCenter", tempClipCenter32);
+    fn("PICO_clipCenter", tempClipCenter32);
 
-        fn("PICO_scale", Math.pow(2, zoom));
+    fn("PICO_scale", Math.pow(2, zoom));
 
-        mat4.multiply(tempViewProjectionMatrix32, projectionMatrix, viewMatrix);
+    mat4.multiply(tempViewProjectionMatrix32, projectionMatrix, viewMatrix);
 
-        fn("PICO_viewProjectionMatrix", tempViewProjectionMatrix32);
-    },
+    fn("PICO_viewProjectionMatrix", tempViewProjectionMatrix32);
+}
 
-    pixelsPerMeter(latitude) {
-        /**
-        * Number of pixels occupied by one meter around current lat/lon:
-        */
-        return TILE_SIZE / EARTH_CIRCUMFERENCE / Math.cos(latitude * DEGREES_TO_RADIANS);
-    },
+export function PICO_pixelsPerMeter(latitude) {
+    /**
+    * Number of pixels occupied by one meter around current lat/lon:
+    */
+    return TILE_SIZE / EARTH_CIRCUMFERENCE / Math.cos(latitude * DEGREES_TO_RADIANS);
+}
 
-    pixelsPerDegree(out, latitude) {
-        out[0] = TILE_SIZE / 360;
-        out[1] = out[0] / Math.cos(latitude * DEGREES_TO_RADIANS);
+export function PICO_pixelsPerDegree(out, latitude) {
+    out[0] = TILE_SIZE / 360;
+    out[1] = out[0] / Math.cos(latitude * DEGREES_TO_RADIANS);
 
-        return out;
-    },
+    return out;
+}
 
-    lngLatToWorld(out, longitude, latitude) {
-        let lambda2 = longitude * DEGREES_TO_RADIANS;
-        let phi2 = latitude * DEGREES_TO_RADIANS;
-        let x = TILE_SIZE * (lambda2 + PI) / (2 * PI);
-        let y = TILE_SIZE * (PI + Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
+export function PICO_lngLatToWorld(out, longitude, latitude) {
+    let lambda2 = longitude * DEGREES_TO_RADIANS;
+    let phi2 = latitude * DEGREES_TO_RADIANS;
+    let x = TILE_SIZE * (lambda2 + PI) / (2 * PI);
+    let y = TILE_SIZE * (PI + Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
 
-        out[0] = x;
-        out[1] = y;
-        out[2] = 0;
-        out[3] = 1;
+    out[0] = x;
+    out[1] = y;
+    out[2] = 0;
+    out[3] = 1;
 
-        return out;
-    },
+    return out;
+}
 
-    lngLatToClip(out, longitude, latitude, viewProjMatrix) {
-        let worldCenter = this.lngLatToWorld(tempCenter64, longitude, latitude);
-        vec4.transformMat4(out, worldCenter, viewProjMatrix);
+export function PICO_worldToClip(out, worldPosition, viewMatrix, projectionMatrix) {
+    vec4.transformMat4(tempCenter64, worldPosition, viewMatrix);
+    vec4.transformMat4(out, tempCenter64, projectionMatrix);
 
-        return out;
-    }
-};
+    return out;
+}
+
+export function PICO_lngLatToClip(out, longitude, latitude, viewMatrix, projectionMatrix) {
+    PICO_lngLatToWorld(tempCenter64, longitude, latitude);
+    PICO_worldToClip(out, tempCenter64, viewMatrix, projectionMatrix)
+
+    return out;
+}

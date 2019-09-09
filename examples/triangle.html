@@ -73,7 +73,13 @@
         }
     </script>
     <script type="module">
-        import {PicoMercator} from "../src/pico-mercator.js";
+        import {
+            PICO_highPrecisionMat4,
+            PICO_injectGLSLProjection,
+            PICO_mapboxViewMatrix,
+            PICO_mapboxProjectionMatrix,
+            PICO_forEachUniform
+        } from "../src/pico-mercator.js";
 
         const INITIAL_ZOOM = 15;
         const INITIAL_CENTER = [30.48688963987, 50.44638775297];
@@ -107,7 +113,7 @@
         }
 
         // PROGRAM 
-        let vsSource =  PicoMercator.injectGLSLProjection(document.getElementById("vs").text.trim());
+        let vsSource =  PICO_injectGLSLProjection(document.getElementById("vs").text.trim());
         let fsSource =  document.getElementById("fs").text.trim();
 
         // GEOMETRY IN VERTEX BUFFERS
@@ -128,8 +134,8 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
-        let viewMat = PicoMercator.highPrecisionMat4();
-        let projMat = PicoMercator.highPrecisionMat4();
+        let viewMat = PICO_highPrecisionMat4();
+        let projMat = PICO_highPrecisionMat4();
 
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
@@ -143,7 +149,7 @@
 
                 let {lng, lat} = mapCenter;
 
-                PicoMercator.mapboxViewMatrix(viewMat, {
+                PICO_mapboxViewMatrix(viewMat, {
                     longitude: lng,
                     latitude: lat,
                     zoom: mapZoom,
@@ -152,14 +158,14 @@
                     canvasHeight: app.height,
                 });
 
-                PicoMercator.mapboxProjectionMatrix(projMat, {
+                PICO_mapboxProjectionMatrix(projMat, {
                     canvasWidth: app.width,
                     canvasHeight: app.height,
                     pitch: mapPitch,
                     zoom: mapZoom,
                 });
 
-                PicoMercator.forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
+                PICO_forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
                     drawCall.uniform(name, value)
                 });
 
