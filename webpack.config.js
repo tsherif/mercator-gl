@@ -12,8 +12,7 @@ module.exports = {
         library: "PicoMercator",
         path: path.resolve(__dirname, "build"),
         filename: "pico-mercator.min.js",
-        libraryTarget: "umd",
-        libraryExport: "PicoMercator"
+        libraryTarget: "umd"
     },
     plugins: [
         // Placeholder for actual license

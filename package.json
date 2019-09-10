@@ -1,6 +1,6 @@
 {
   "name": "pico-mercator",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A minimal library for Mapbox GL-compatible web mercator projections",
   "main": "build/pico-mercator.min.js",
   "repository": {

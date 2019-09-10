@@ -58,7 +58,7 @@
         out vec3 vColor; 
         void main() {
             vColor = color;
-            gl_Position =  PICO_MERCATOR_lngLatToClip(position);
+            gl_Position =  pico_mercator_lngLatToClip(position);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -73,8 +73,19 @@
         }
     </script>
     <script type="module">
-        const INITIAL_ZOOM = 15;
-        const INITIAL_CENTER = [-73.980130, 40.762896];
+
+        const {
+            pico_mercator_injectGLSLProjection,
+            pico_mercator_highPrecisionMat4,
+            pico_mercator_mapboxViewMatrix,
+            pico_mercator_mapboxProjectionMatrix,
+            pico_mercator_uniforms
+        } = PicoMercator;
+
+        const INITIAL_ZOOM = 14;
+        const INITIAL_CENTER = [-73.982130, 40.762896];
+        const INITIAL_PITCH = 40;
+        const INITIAL_BEARING = -10;
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
@@ -91,7 +102,9 @@
             container: mapboxContainer,
             style: "mapbox://styles/mapbox/streets-v9",
             center: INITIAL_CENTER,
-            zoom: INITIAL_ZOOM
+            zoom: INITIAL_ZOOM,
+            pitch: INITIAL_PITCH,
+            bearing: INITIAL_BEARING
         });
         
         let app = PicoGL.createApp(canvas, { alpha: true })
@@ -105,7 +118,7 @@
         }
 
         // PROGRAM 
-        let vsSource =  PicoMercator.injectGLSLProjection(document.getElementById("vs").text.trim());
+        let vsSource =  pico_mercator_injectGLSLProjection(document.getElementById("vs").text.trim());
         let fsSource =  document.getElementById("fs").text.trim();
 
         // GEOMETRY IN VERTEX BUFFERS
@@ -126,8 +139,8 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
-        let viewMat = PicoMercator.highPrecisionMat4();
-        let projMat = PicoMercator.highPrecisionMat4();
+        let viewMat = pico_mercator_highPrecisionMat4();
+        let projMat = pico_mercator_highPrecisionMat4();
 
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
@@ -141,23 +154,13 @@
 
                 let {lng, lat} = mapCenter;
 
-                PicoMercator.mapboxViewMatrix(viewMat, {
-                    longitude: lng,
-                    latitude: lat,
-                    zoom: mapZoom,
-                    pitch: mapPitch,
-                    bearing: mapBearing,
-                    canvasHeight: app.height,
-                });
+                pico_mercator_mapboxViewMatrix(viewMat, lng, lat, mapZoom, mapPitch, mapBearing, app.height);
+                pico_mercator_mapboxProjectionMatrix(projMat, mapPitch, app.width, app.height);
 
-                PicoMercator.mapboxProjectionMatrix(projMat, {
-                    canvasWidth: app.width,
-                    canvasHeight: app.height,
-                    pitch: mapPitch
-                });
-
-                PicoMercator.forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
-                    drawCall.uniform(name, value)
+                pico_mercator_uniforms(lng, lat, mapZoom, viewMat, projMat, (uniforms) => {
+                    for (let name in uniforms) {
+                        drawCall.uniform(name, uniforms[name]);
+                    }
                 });
 
                 // DRAW

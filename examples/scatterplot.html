@@ -68,11 +68,11 @@
 
         void main() {
             vShapePosition = shapePosition;
-            vec4 worldPosition = PICO_MERCATOR_lngLatToWorld(positionRadius.xy);
-            float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / PICO_MERCATOR_scale, radiusLimits.y / PICO_MERCATOR_scale);
+            vec4 worldPosition = pico_mercator_lngLatToWorld(positionRadius.xy);
+            float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / pico_mercator_scale, radiusLimits.y / pico_mercator_scale);
             vec3 offset = shapePosition * radius;
             worldPosition.xyz += offset;
-            gl_Position = PICO_MERCATOR_worldToClip(worldPosition);
+            gl_Position = pico_mercator_worldToClip(worldPosition);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -91,6 +91,16 @@
         }
     </script>
     <script>
+
+        const {
+            pico_mercator_injectGLSLProjection,
+            pico_mercator_highPrecisionMat4,
+            pico_mercator_mapboxViewMatrix,
+            pico_mercator_mapboxProjectionMatrix,
+            pico_mercator_pixelsPerMeter,
+            pico_mercator_uniforms
+        } = PicoMercator;
+
         const INITIAL_ZOOM = 11.5;
         const INITIAL_CENTER = [-122.427, 37.752];
 
@@ -127,7 +137,7 @@
         utils.addTimerElement();
 
         // PROGRAM 
-        let vsSource =  PicoMercator.injectGLSLProjection(document.getElementById("vs").text.trim());
+        let vsSource =  pico_mercator_injectGLSLProjection(document.getElementById("vs").text.trim());
         let fsSource =  document.getElementById("fs").text.trim();
 
         Promise.all([
@@ -160,8 +170,8 @@
             .instanceAttributeBuffer(0, positions)
             .vertexAttributeBuffer(1, shapePositions);
   
-            let viewMat = PicoMercator.highPrecisionMat4();
-            let projMat = PicoMercator.highPrecisionMat4();
+            let viewMat = pico_mercator_highPrecisionMat4();
+            let projMat = pico_mercator_highPrecisionMat4();
             let radiusLimits = new Float32Array([1, 30]);
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
@@ -181,29 +191,17 @@
 
                 let {lng, lat} = mapCenter;
 
-                viewMat = PicoMercator.mapboxViewMatrix(viewMat, {
-                    longitude: lng,
-                    latitude: lat,
-                    zoom: mapZoom,
-                    pitch: mapPitch,
-                    bearing: mapBearing,
-                    canvasHeight: app.height,
-                });
+                pico_mercator_mapboxViewMatrix(viewMat, lng, lat, mapZoom, mapPitch, mapBearing, app.height);
+                pico_mercator_mapboxProjectionMatrix(projMat, mapPitch, app.width, app.height);
 
-                projMat = PicoMercator.mapboxProjectionMatrix(projMat, {
-                    canvasWidth: app.width,
-                    canvasHeight: app.height,
-                    pitch: mapPitch
-                });
-
-                let pixelsPerMeter = PicoMercator.pixelsPerMeter(lat);
-
-                drawCall.uniform("pixelsPerMeter", pixelsPerMeter)
+                drawCall.uniform("pixelsPerMeter", pico_mercator_pixelsPerMeter(lat))
                 .uniform("radiusScale", 30)
                 .uniform("radiusLimits", radiusLimits);
 
-                PicoMercator.forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
-                    drawCall.uniform(name, value)
+                pico_mercator_uniforms(lng, lat, mapZoom, viewMat, projMat, (uniforms) => {
+                    for (let name in uniforms) {
+                        drawCall.uniform(name, uniforms[name]);
+                    }
                 });
 
                 // DRAW
