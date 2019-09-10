@@ -62,7 +62,6 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
         });
 
         PicoMercator.mapboxProjectionMatrix(projectionMatrix, {
-            zoom,
             pitch,
             near, // Distance to near plane, far is calculated automatically
             canvasWidth: canvas.width,
