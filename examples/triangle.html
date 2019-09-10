@@ -74,7 +74,7 @@
     </script>
     <script type="module">
         const INITIAL_ZOOM = 15;
-        const INITIAL_CENTER = [30.48688963987, 50.44638775297];
+        const INITIAL_CENTER = [-73.980130, 40.762896];
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
@@ -110,9 +110,9 @@
 
         // GEOMETRY IN VERTEX BUFFERS
         let positions = app.createVertexBuffer(PicoGL.FLOAT, 2, new Float32Array([
-            30.486165443435, 50.447380110621,
-            30.487361708656, 50.44718881482,
-            30.485859671608, 50.446396295406
+            -73.9819, 40.76810, 
+            -73.985130, 40.758896,
+            -73.9786, 40.7589 
         ]));
 
         let colors = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 3, new Uint8Array([
