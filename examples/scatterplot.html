@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PicoMercator</title>
+    <title>PicoMercator Scatterplot</title>
     <meta charset="utf-8">
+    <script src="../build/pico-mercator.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
-    <script src="./lib/gl-matrix.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
     <script src="./lib/utils.js"></script>
     <link href="./lib/mapbox-gl.css" rel="stylesheet" />
@@ -64,11 +64,11 @@
 
         void main() {
             vShapePosition = shapePosition;
-            vec4 worldPosition = PICO_lngLatToWorld(positionRadius.xy);
-            float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / PICO_scale, radiusLimits.y / PICO_scale);
+            vec4 worldPosition = PICO_MERCATOR_lngLatToWorld(positionRadius.xy);
+            float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / PICO_MERCATOR_scale, radiusLimits.y / PICO_MERCATOR_scale);
             vec3 offset = shapePosition * radius;
             worldPosition.xyz += offset;
-            gl_Position = PICO_worldToClip(worldPosition);
+            gl_Position = PICO_MERCATOR_worldToClip(worldPosition);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -86,16 +86,7 @@
             fragColor = vec4(1.0, 0.5, 0.0, 1.0);
         }
     </script>
-    <script type="module">
-        import {
-            PICO_highPrecisionMat4,
-            PICO_injectGLSLProjection,
-            PICO_mapboxViewMatrix,
-            PICO_mapboxProjectionMatrix,
-            PICO_forEachUniform,
-            PICO_pixelsPerMeter
-        } from "../src/pico-mercator.js";
-
+    <script>
         const INITIAL_ZOOM = 11.5;
         const INITIAL_CENTER = [-122.427, 37.752];
 
@@ -107,7 +98,6 @@
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-
 
         mapboxgl.accessToken = 'pk.eyJ1IjoidHNoZXJpZiIsImEiOiJjanJ1dm1iNjYwZXM2M3lta2FjZ3dqa3JpIn0.js3Fu08SNC8Ca4VEWeiZ5A';
         let map = new mapboxgl.Map({
@@ -133,7 +123,7 @@
         utils.addTimerElement();
 
         // PROGRAM 
-        let vsSource =  PICO_injectGLSLProjection(document.getElementById("vs").text.trim());
+        let vsSource =  PicoMercator.injectGLSLProjection(document.getElementById("vs").text.trim());
         let fsSource =  document.getElementById("fs").text.trim();
 
         Promise.all([
@@ -166,8 +156,8 @@
             .instanceAttributeBuffer(0, positions)
             .vertexAttributeBuffer(1, shapePositions);
   
-            let viewMat = PICO_highPrecisionMat4();
-            let projMat = PICO_highPrecisionMat4();
+            let viewMat = PicoMercator.highPrecisionMat4();
+            let projMat = PicoMercator.highPrecisionMat4();
             let radiusLimits = new Float32Array([1, 30]);
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
@@ -187,7 +177,7 @@
 
                 let {lng, lat} = mapCenter;
 
-                viewMat = PICO_mapboxViewMatrix(viewMat, {
+                viewMat = PicoMercator.mapboxViewMatrix(viewMat, {
                     longitude: lng,
                     latitude: lat,
                     zoom: mapZoom,
@@ -196,20 +186,19 @@
                     canvasHeight: app.height,
                 });
 
-                projMat = PICO_mapboxProjectionMatrix(projMat, {
+                projMat = PicoMercator.mapboxProjectionMatrix(projMat, {
                     canvasWidth: app.width,
                     canvasHeight: app.height,
-                    pitch: mapPitch,
-                    zoom: mapZoom,
+                    pitch: mapPitch
                 });
 
-                let pixelsPerMeter = PICO_pixelsPerMeter(lat);
+                let pixelsPerMeter = PicoMercator.pixelsPerMeter(lat);
 
                 drawCall.uniform("pixelsPerMeter", pixelsPerMeter)
                 .uniform("radiusScale", 30)
                 .uniform("radiusLimits", radiusLimits);
 
-                PICO_forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
+                PicoMercator.forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
                     drawCall.uniform(name, value)
                 });
 

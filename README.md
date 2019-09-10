@@ -3,7 +3,7 @@ PicoMercator
 
 PicoMercator is a minimal library for doing web mercator projections in WebGL in a manner compatible with [Mapbox GL](https://github.com/mapbox/mapbox-gl-js). It provides GLSL code for projecting longitude/latitude coordinates into 3D space, and JavaScript functions to create view and projection matrices to overlay them onto a map rendered by Mapbox GL. PicoMercator focuses on numerical stability by performing most calculations at 64-bit precision, and switching to an "offset mode" at higher zoom levels (using a technique borrowed from [deck.gl](https://medium.com/vis-gl/how-sometimes-assuming-the-earth-is-flat-helps-speed-up-rendering-in-deck-gl-c43b72fd6db4)).
 
-Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element, and updating to match the current map view. PicoMercator provides a function `PICO_injectGLSLProjection` to insert functions `PICO_lngLatToWorld`, `PICO_worldToClip`, and `PICO_lngLatToClip` into vertex shader source code so the mercator projection can be done on the GPU. The JavaScript function `PICO_forEachUniform` provides names and values of uniforms used by the PicoMercator shader functions so they can be set in whatever manner is appropriate for the application.
+Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element, and updating to match the current map view. PicoMercator provides a function `PicoMercator.injectGLSLProjection` to insert functions `PICO_MERCATOR_lngLatToWorld`, `PICO_MERCATOR_worldToClip`, and `PICO_MERCATOR_lngLatToClip` into vertex shader source code so the mercator projection can be done on the GPU. The JavaScript function `PicoMercator.forEachUniform` provides names and values of uniforms used by the PicoMercator shader functions so they can be set in whatever manner is appropriate for the application.
 
 ```JavaScript
 
@@ -18,10 +18,10 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
         #version 300 es
         layout(location=0) in vec2 lngLatPosition;
         void main() {
-            // PICO_lngLatToClip function injected by injectGLSLProjection().
-            // PICO_lngLatToWorld and PICO_worldToClip also available to do
+            // PICO_MERCATOR_lngLatToClip function injected by injectGLSLProjection().
+            // PICO_MERCATOR_lngLatToWorld and PICO_MERCATOR_worldToClip also available to do
             // projection in multiple steps.
-            gl_Position = PICO_lngLatToClip(position);
+            gl_Position = PICO_MERCATOR_lngLatToClip(position);
         }
     `;
 
@@ -36,14 +36,14 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
 
 
     // Insert function PICO_project_mercator into vertex shader
-    let vertexShaderSource = PICO_injectGLSLProjection(vs);
+    let vertexShaderSource = PicoMercator.injectGLSLProjection(vs);
     let fragmentShaderSource =  fs;
     // Create WebGL program from vertexShaderSource and fragmentShaderSource
 
     // Use 64-bit precision matrices to avoid numerical instability 
     // in intermediate calculations
-    let viewMatrix = PICO_highPrecisionMat4();
-    let projectionMatrix = PICO_highPrecisionMat4();
+    let viewMatrix = PicoMercator.highPrecisionMat4();
+    let projectionMatrix = PicoMercator.highPrecisionMat4();
 
     map.on("render", (e) => {
         let {lng, lat} = map.getCenter();
@@ -52,7 +52,7 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
         let bearing = map.getBearing();
 
 
-        PICO_mapboxViewMatrix(viewMatrix, {
+        PicoMercator.mapboxViewMatrix(viewMatrix, {
             longitude: lng,
             latitude: lat,
             zoom,
@@ -61,7 +61,7 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
             canvasHeight: canvas.height
         });
 
-        PICO_mapboxProjectionMatrix(projectionMatrix, {
+        PicoMercator.mapboxProjectionMatrix(projectionMatrix, {
             zoom,
             pitch,
             near, // Distance to near plane, far is calculated automatically
@@ -69,7 +69,7 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
             canvasHeight: canvas.height
         });
 
-        PICO_forEachUniform(lng, lat, zoom, viewMatrix, projectionMatrix, (name, value) => {
+        PicoMercator.forEachUniform(lng, lat, zoom, viewMatrix, projectionMatrix, (name, value) => {
             // Set PicoMercator uniforms
         });
 

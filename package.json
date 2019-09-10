@@ -2,7 +2,7 @@
   "name": "pico-mercator",
   "version": "0.1.0",
   "description": "A minimal library for MapboxGL-compatible web mercator projections",
-  "main": "src/pico-mercator.js",
+  "main": "build/pico-mercator.min.js",
   "repository": {
     "type": "git",
     "url": "https://github.com/tsherif/pico-mercator"
@@ -12,17 +12,32 @@
     "email": "tareksherif@pm.me",
     "url": "http://tareksherif.net/"
   },
+  "scripts": {
+    "clean": "rimraf **/npm-debug.log build/pico-mercator.min.js.LICENSE",
+    "lint": "eslint src/*.js",
+    "compile": "webpack && npm run clean",
+    "build": "npm run test && npm run compile",
+    "test": "npm run lint"
+  },
   "keywords": [
     "mercator",
     "mapbox",
     "geospatial",
     "visualization",
-    "webgl2",
-    "3d",
-    "picogl"
+    "webgl",
+    "3d"
   ],
   "license": "MIT",
   "bugs": {
     "url": "https://github.com/tsherif/pico-mercator/issues"
+  },
+  "dependencies": {
+    "gl-matrix": "^3.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^6.3.0",
+    "rimraf": "^3.0.0",
+    "webpack": "^4.39.3",
+    "webpack-cli": "^3.3.8"
   }
 }

@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PicoMercator</title>
+    <title>PicoMercator Triangle</title>
     <meta charset="utf-8">
+    <script src="../build/pico-mercator.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
     <link href="./lib/mapbox-gl.css" rel="stylesheet" />
@@ -57,7 +58,7 @@
         out vec3 vColor; 
         void main() {
             vColor = color;
-            gl_Position =  PICO_lngLatToClip(position);
+            gl_Position =  PICO_MERCATOR_lngLatToClip(position);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -72,14 +73,6 @@
         }
     </script>
     <script type="module">
-        import {
-            PICO_highPrecisionMat4,
-            PICO_injectGLSLProjection,
-            PICO_mapboxViewMatrix,
-            PICO_mapboxProjectionMatrix,
-            PICO_forEachUniform
-        } from "../src/pico-mercator.js";
-
         const INITIAL_ZOOM = 15;
         const INITIAL_CENTER = [30.48688963987, 50.44638775297];
 
@@ -112,7 +105,7 @@
         }
 
         // PROGRAM 
-        let vsSource =  PICO_injectGLSLProjection(document.getElementById("vs").text.trim());
+        let vsSource =  PicoMercator.injectGLSLProjection(document.getElementById("vs").text.trim());
         let fsSource =  document.getElementById("fs").text.trim();
 
         // GEOMETRY IN VERTEX BUFFERS
@@ -133,8 +126,8 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
-        let viewMat = PICO_highPrecisionMat4();
-        let projMat = PICO_highPrecisionMat4();
+        let viewMat = PicoMercator.highPrecisionMat4();
+        let projMat = PicoMercator.highPrecisionMat4();
 
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
@@ -148,7 +141,7 @@
 
                 let {lng, lat} = mapCenter;
 
-                PICO_mapboxViewMatrix(viewMat, {
+                PicoMercator.mapboxViewMatrix(viewMat, {
                     longitude: lng,
                     latitude: lat,
                     zoom: mapZoom,
@@ -157,14 +150,13 @@
                     canvasHeight: app.height,
                 });
 
-                PICO_mapboxProjectionMatrix(projMat, {
+                PicoMercator.mapboxProjectionMatrix(projMat, {
                     canvasWidth: app.width,
                     canvasHeight: app.height,
-                    pitch: mapPitch,
-                    zoom: mapZoom,
+                    pitch: mapPitch
                 });
 
-                PICO_forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
+                PicoMercator.forEachUniform(lng, lat, mapZoom, viewMat, projMat, (name, value) => {
                     drawCall.uniform(name, value)
                 });
 
