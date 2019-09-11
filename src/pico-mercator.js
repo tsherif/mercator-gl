@@ -41,23 +41,35 @@ const float PICO_MERCATOR_PI = 3.1415926536;
 const float PICO_MERCATOR_WORLD_SCALE = PICO_MERCATOR_TILE_SIZE / (PICO_MERCATOR_PI * 2.0);
 
 uniform vec2 pico_mercator_lngLatCenter;
-uniform vec2 pico_mercator_pixelsPerDegree;
+uniform vec3 pico_mercator_angleDerivatives;
+uniform vec2 pico_mercator_meterDerivatives;
 uniform float pico_mercator_scale;
 uniform vec4 pico_mercator_clipCenter;
 uniform mat4 pico_mercator_viewProjectionMatrix;
 
-vec4 pico_mercator_lngLatToWorld(vec2 lngLatPosition) {
+vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation) {
     vec2 mercatorPosition;
+    float elevation;
     if (pico_mercator_scale < 2048.0) {
         mercatorPosition = vec2(
-            (radians(lngLatPosition.x) + PICO_MERCATOR_PI) * PICO_MERCATOR_WORLD_SCALE,
-            (PICO_MERCATOR_PI + log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLatPosition.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
+            (radians(lngLatElevation.x) + PICO_MERCATOR_PI) * PICO_MERCATOR_WORLD_SCALE,
+            (PICO_MERCATOR_PI + log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLatElevation.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
         );
+        elevation = lngLatElevation.z * pico_mercator_meterDerivatives.x;
     } else {
-        mercatorPosition = (lngLatPosition - pico_mercator_lngLatCenter) * pico_mercator_pixelsPerDegree;
+        mercatorPosition = lngLatElevation.xy - pico_mercator_lngLatCenter;
+        elevation = lngLatElevation.z * (pico_mercator_meterDerivatives.x + mercatorPosition.y * pico_mercator_angleDerivatives.y);
+        mercatorPosition = vec2(
+            mercatorPosition.x * pico_mercator_angleDerivatives.x,
+            mercatorPosition.y * (pico_mercator_angleDerivatives.y + mercatorPosition.y * pico_mercator_angleDerivatives.z)
+        );
     }
 
-    return vec4(mercatorPosition, 0.0, 1.0);
+    return vec4(mercatorPosition, elevation, 1.0);
+}
+
+vec4 pico_mercator_lngLatToWorld(vec2 lngLat) {
+    return pico_mercator_lngLatToWorld(vec3(lngLat, 0.0));
 }
 
 vec4 pico_mercator_worldToClip(vec4 worldPosition) {
@@ -72,9 +84,14 @@ vec4 pico_mercator_worldToClip(vec4 worldPosition) {
     return clipPosition;
 }
 
-vec4 pico_mercator_lngLatToClip(vec2 lngLatPosition) {
-    return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLatPosition));
+vec4 pico_mercator_lngLatToClip(vec3 lngLatElevation) {
+    return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLatElevation));
 }
+
+vec4 pico_mercator_lngLatToClip(vec2 lngLat) {
+    return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLat));
+}
+
 `;
 
 // High-precision for intermediate calculations
@@ -85,7 +102,8 @@ let tempViewScale64 = new Float64Array(3);
 // Low-precision for uniforms
 let uniforms = {
     pico_mercator_lngLatCenter: new Float32Array(2),
-    pico_mercator_pixelsPerDegree: new Float32Array(2),
+    pico_mercator_angleDerivatives: new Float32Array(3),
+    pico_mercator_meterDerivatives: new Float32Array(2),
     pico_mercator_clipCenter: new Float32Array(4),
     pico_mercator_viewProjectionMatrix: new Float32Array(16),
     pico_mercator_scale: 0
@@ -109,7 +127,11 @@ export function pico_mercator_uniforms(longitude, latitude, zoom, viewMatrix, pr
     uniforms.pico_mercator_lngLatCenter[0] = longitude;
     uniforms.pico_mercator_lngLatCenter[1] = latitude;
 
-    pico_mercator_pixelsPerDegree(uniforms.pico_mercator_pixelsPerDegree, latitude);
+    let latCosine = Math.cos(latitude * DEGREES_TO_RADIANS);
+    let latCosine2 = DEGREES_TO_RADIANS * Math.tan(latitude * DEGREES_TO_RADIANS) / latCosine;
+    angleDerivatives(uniforms.pico_mercator_angleDerivatives, latitude, latCosine, latCosine2);
+    meterDerivatives(uniforms.pico_mercator_meterDerivatives, latitude, latCosine, latCosine2);
+
     pico_mercator_lngLatToClip(uniforms.pico_mercator_clipCenter, longitude, latitude, viewMatrix, projectionMatrix);
 
     mat4.multiply(uniforms.pico_mercator_viewProjectionMatrix, projectionMatrix, viewMatrix);
@@ -166,15 +188,15 @@ export function pico_mercator_mapboxProjectionMatrix(out, pitch, canvasWidth, ca
     return out;
 }
 
-export function pico_mercator_pixelsPerMeter(latitude) {
+export function pico_mercator_pixelsPerMeter(latitude, latCosine = Math.cos(latitude * DEGREES_TO_RADIANS)) {
     // Number of pixels occupied by one meter around current lat/lon
-    return TILE_SIZE / EARTH_CIRCUMFERENCE / Math.cos(latitude * DEGREES_TO_RADIANS);
+    return TILE_SIZE / EARTH_CIRCUMFERENCE / latCosine;
 }
 
-export function pico_mercator_pixelsPerDegree(out, latitude) {
+export function pico_mercator_pixelsPerDegree(out, latitude, latCosine = Math.cos(latitude * DEGREES_TO_RADIANS)) {
     // Number of pixels occupied by one degree around current lat/lon
-    out[0] = TILE_SIZE / 360;
-    out[1] = out[0] / Math.cos(latitude * DEGREES_TO_RADIANS);
+    out[0] = TILE_SIZE / 360;                                   // dx/dlat
+    out[1] = out[0] / latCosine;  // dy/dlat
 
     return out;
 }
@@ -203,6 +225,19 @@ export function pico_mercator_worldToClip(out, worldPosition, viewMatrix, projec
 export function pico_mercator_lngLatToClip(out, longitude, latitude, viewMatrix, projectionMatrix) {
     pico_mercator_lngLatToWorld(tempCenter64, longitude, latitude);
     pico_mercator_worldToClip(out, tempCenter64, viewMatrix, projectionMatrix);
+
+    return out;
+}
+
+
+function angleDerivatives(out, latitude, latCosine, latCosine2) {
+    pico_mercator_pixelsPerDegree(out, latitude, latCosine);
+    out[2] = out[0] * latCosine2 / 2;
+}
+
+function meterDerivatives(out, latitude, latCosine, latCosine2) {
+    out[0] = pico_mercator_pixelsPerMeter(latitude, latCosine);
+    out[1] = TILE_SIZE / EARTH_CIRCUMFERENCE * latCosine2;
 
     return out;
 }
