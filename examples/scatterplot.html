@@ -57,8 +57,9 @@
     <script type="shader/vs" id="vs">
         #version 300 es
 
-        layout(location=0) in vec3 positionRadius;
-        layout(location=1) in vec3 shapePosition;
+        layout(location=0) in vec4 positions;
+        layout(location=1) in float radius;
+        layout(location=2) in vec3 shapePosition;
 
         uniform float pixelsPerMeter;
         uniform float radiusScale;
@@ -68,9 +69,9 @@
 
         void main() {
             vShapePosition = shapePosition;
-            vec4 worldPosition = pico_mercator_lngLatToWorld(positionRadius.xy);
-            float radius = clamp(positionRadius.z * pixelsPerMeter * radiusScale, radiusLimits.x / pico_mercator_scale, radiusLimits.y / pico_mercator_scale);
-            vec3 offset = shapePosition * radius;
+            vec4 worldPosition = pico_mercator_lngLatToWorld(positions);
+            float r = clamp(radius * pixelsPerMeter * radiusScale, radiusLimits.x / pico_mercator_scale, radiusLimits.y / pico_mercator_scale);
+            vec3 offset = shapePosition * r;
             worldPosition.xyz += offset;
             gl_Position = pico_mercator_worldToClip(worldPosition);
         }
@@ -101,8 +102,10 @@
             pico_mercator_uniforms
         } = PicoMercator;
 
-        const INITIAL_ZOOM = 11.5;
-        const INITIAL_CENTER = [-122.427, 37.752];
+        // const INITIAL_ZOOM = 11.5;
+        const INITIAL_ZOOM = 20;
+        // const INITIAL_CENTER = [-122.427, 37.752];
+        const INITIAL_CENTER = [-122.46948713341914, 37.729786030164874];
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
@@ -118,7 +121,8 @@
             container: mapboxContainer,
             style: "mapbox://styles/mapbox/streets-v9",
             center: INITIAL_CENTER,
-            zoom: INITIAL_ZOOM
+            zoom: INITIAL_ZOOM,
+            maxZoom: 20
         });
         
         let app = PicoGL.createApp(canvas, { alpha: true })
@@ -145,18 +149,23 @@
             fetch('./data/sf.bike.parking.json').then(response => response.json())
         ]).then(([[program], data]) => {
 
-            let positionData = new Float32Array(data.length * 3);
+            let positionData = new Float32Array(data.length * 4);
+            let radiusData = new Float32Array(data.length);
 
             for (let i = 0; i < data.length; ++i) {
-                let pi = i * 3;
+                let pi = i * 4;
                 let coords = data[i].COORDINATES;
 
                 positionData[pi] =     coords[0];
                 positionData[pi + 1] = coords[1];
-                positionData[pi + 2] = data[i].SPACES;
+                positionData[pi + 2] = coords[0] - Math.fround(coords[0]);
+                positionData[pi + 3] = coords[1] - Math.fround(coords[1])
+                
+                radiusData[i] = data[i].SPACES;
             }
 
-            let positions = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData);
+            let positions = app.createVertexBuffer(PicoGL.FLOAT, 4, positionData);
+            let radius = app.createVertexBuffer(PicoGL.FLOAT, 1, radiusData);
             let shapePositions = app.createVertexBuffer(PicoGL.FLOAT, 2, new Float32Array([
                 -1, 1,
                 -1, -1,
@@ -168,7 +177,8 @@
             // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
             let vertexArray = app.createVertexArray()
             .instanceAttributeBuffer(0, positions)
-            .vertexAttributeBuffer(1, shapePositions);
+            .instanceAttributeBuffer(1, radius)
+            .vertexAttributeBuffer(2, shapePositions);
   
             let viewMat = pico_mercator_highPrecisionMat4();
             let projMat = pico_mercator_highPrecisionMat4();

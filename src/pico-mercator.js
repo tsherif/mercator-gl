@@ -47,30 +47,25 @@ uniform float pico_mercator_scale;
 uniform vec4 pico_mercator_clipCenter;
 uniform mat4 pico_mercator_viewProjectionMatrix;
 
-vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation) {
+vec4 pico_mercator_lngLatToWorld(vec4 lngLat) {
     vec2 mercatorPosition;
-    float elevation;
     if (pico_mercator_scale < 2048.0) {
         mercatorPosition = vec2(
-            (radians(lngLatElevation.x) + PICO_MERCATOR_PI) * PICO_MERCATOR_WORLD_SCALE,
-            (PICO_MERCATOR_PI + log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLatElevation.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
+            (radians(lngLat.x) + PICO_MERCATOR_PI) * PICO_MERCATOR_WORLD_SCALE,
+            (PICO_MERCATOR_PI + log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLat.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
         );
-        elevation = lngLatElevation.z * pico_mercator_meterDerivatives.x;
     } else {
-        mercatorPosition = lngLatElevation.xy - pico_mercator_lngLatCenter;
-        elevation = lngLatElevation.z * (pico_mercator_meterDerivatives.x + mercatorPosition.y * pico_mercator_angleDerivatives.y);
+        mercatorPosition = lngLat.xy - pico_mercator_lngLatCenter;
+        mercatorPosition += lngLat.zw;
         mercatorPosition = vec2(
             mercatorPosition.x * pico_mercator_angleDerivatives.x,
             mercatorPosition.y * (pico_mercator_angleDerivatives.y + mercatorPosition.y * pico_mercator_angleDerivatives.z)
         );
     }
 
-    return vec4(mercatorPosition, elevation, 1.0);
+    return vec4(mercatorPosition, 0.0, 1.0);
 }
 
-vec4 pico_mercator_lngLatToWorld(vec2 lngLat) {
-    return pico_mercator_lngLatToWorld(vec3(lngLat, 0.0));
-}
 
 vec4 pico_mercator_worldToClip(vec4 worldPosition) {
     if (pico_mercator_scale >= 2048.0) {
@@ -84,11 +79,7 @@ vec4 pico_mercator_worldToClip(vec4 worldPosition) {
     return clipPosition;
 }
 
-vec4 pico_mercator_lngLatToClip(vec3 lngLatElevation) {
-    return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLatElevation));
-}
-
-vec4 pico_mercator_lngLatToClip(vec2 lngLat) {
+vec4 pico_mercator_lngLatToClip(vec4 lngLat) {
     return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLat));
 }
 
@@ -112,6 +103,11 @@ let uniforms = {
 export function pico_mercator_highPrecisionMat4() {
     return mat4.identity(new Float64Array(16));
 }
+
+// export function pico_mercator_highPrecisionPositionBuffer(positions, elementSize = 2) {
+//     let numElements = positions.length / elementSize;
+//     let positionLowBits = new Float32Array(numElements * 2);
+// };
 
 export function pico_mercator_injectGLSLProjection(vsSource) {
     let versionMatch = vsSource.match(/#version \d+(\s+es)?\s*\n/);
