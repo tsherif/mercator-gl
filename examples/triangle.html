@@ -147,17 +147,15 @@
             let drawCall = app.createDrawCall(program, triangleArray);
 
             map.on("render", (e) => {
-                let mapCenter = map.getCenter();
-                let mapZoom = map.getZoom();
-                let mapPitch = map.getPitch();
-                let mapBearing = map.getBearing();
+                let center = map.getCenter().toArray();
+                let zoom = map.getZoom();
+                let pitch = map.getPitch();
+                let bearing = map.getBearing();
 
-                let {lng, lat} = mapCenter;
+                pico_mercator_mapboxViewMatrix(viewMat, center, zoom, pitch, bearing, app.height);
+                pico_mercator_mapboxProjectionMatrix(projMat, zoom, pitch, app.width, app.height);
 
-                pico_mercator_mapboxViewMatrix(viewMat, lng, lat, mapZoom, mapPitch, mapBearing, app.height);
-                pico_mercator_mapboxProjectionMatrix(projMat, mapZoom, mapPitch, app.width, app.height);
-
-                pico_mercator_uniforms(lng, lat, mapZoom, viewMat, projMat, (uniforms) => {
+                pico_mercator_uniforms(center, zoom, viewMat, projMat, (uniforms) => {
                     for (let name in uniforms) {
                         drawCall.uniform(name, uniforms[name]);
                     }
