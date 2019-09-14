@@ -60,9 +60,9 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
             canvas.height
         );
 
-        pico_mercator_uniforms(lng, lat, zoom, viewProjectionMatrix, (uniforms) => {
+        pico_mercator_uniforms(center, zoom, viewProjectionMatrix, (uniforms) => {
             // `uniforms` is a map of uniform names to values, that the application
-            // can use to update uniforms however it likes.
+            // can use to set PicoMercator's uniforms however it likes.
             // NOTE: uniform values are only valid for the duration 
             // of the callback.
         });
