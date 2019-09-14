@@ -159,18 +159,12 @@ export function pico_mercator_mapboxViewMatrix(out, longitude, latitude, zoom, p
     mat4.identity(out);
 
     // Camera translation (from view center)
-    tempViewTranslation64[2] = -1.5 * canvasHeight;
+    tempViewTranslation64[2] = -1.5 * canvasHeight / scale;
     mat4.translate(out, out, tempViewTranslation64);
 
     // Camera rotation
     mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
     mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
-
-    // Mercator scale
-    tempViewScale64[0] = scale;
-    tempViewScale64[1] = scale;
-    tempViewScale64[2] = 1;
-    mat4.scale(out, out, tempViewScale64);
 
     // Translation to view center
     pico_mercator_lngLatToWorld(tempCenter64, longitude, latitude);
@@ -179,7 +173,9 @@ export function pico_mercator_mapboxViewMatrix(out, longitude, latitude, zoom, p
     return out;
 }
 
-export function pico_mercator_mapboxProjectionMatrix(out, pitch, canvasWidth, canvasHeight, near = canvasHeight) {
+export function pico_mercator_mapboxProjectionMatrix(out, zoom, pitch, canvasWidth, canvasHeight) {
+    let scale = Math.pow(2, zoom);
+
     let altitude = 1.5 * canvasHeight;
     let pitchRadians = pitch * DEGREES_TO_RADIANS;
     let halfFov = Math.atan(1 / 3);   // Math.atan(0.5 * canvasHeight / altitude) => Math.atan(1 / 3)
@@ -189,7 +185,8 @@ export function pico_mercator_mapboxProjectionMatrix(out, pitch, canvasWidth, ca
     // Calculate z value of the farthest fragment that should be rendered (plus an epsilon).
     let fov = 2 * halfFov;
     let aspect = canvasWidth / canvasHeight;
-    let far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
+    let near = 0.1 * altitude / scale;
+    let far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01 / scale;
 
     mat4.perspective(
         out,

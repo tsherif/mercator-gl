@@ -204,7 +204,7 @@
                 let {lng, lat} = mapCenter;
 
                 pico_mercator_mapboxViewMatrix(viewMat, lng, lat, mapZoom, mapPitch, mapBearing, app.height);
-                pico_mercator_mapboxProjectionMatrix(projMat, mapPitch, app.width, app.height);
+                pico_mercator_mapboxProjectionMatrix(projMat, mapZoom, mapPitch, app.width, app.height);
 
                 drawCall.uniform("pixelsPerMeter", pico_mercator_pixelsPerMeter(lat))
                 .uniform("radiusScale", 30)

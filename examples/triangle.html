@@ -155,7 +155,7 @@
                 let {lng, lat} = mapCenter;
 
                 pico_mercator_mapboxViewMatrix(viewMat, lng, lat, mapZoom, mapPitch, mapBearing, app.height);
-                pico_mercator_mapboxProjectionMatrix(projMat, mapPitch, app.width, app.height);
+                pico_mercator_mapboxProjectionMatrix(projMat, mapZoom, mapPitch, app.width, app.height);
 
                 pico_mercator_uniforms(lng, lat, mapZoom, viewMat, projMat, (uniforms) => {
                     for (let name in uniforms) {
