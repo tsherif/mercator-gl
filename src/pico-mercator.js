@@ -47,7 +47,7 @@ uniform float pico_mercator_scale;
 uniform vec4 pico_mercator_clipCenter;
 uniform mat4 pico_mercator_viewProjectionMatrix;
 
-vec4 pico_mercator_lngLatToWorld(vec4 lngLat) {
+vec4 pico_mercator_lngLatToWorld(vec2 lngLat, vec2 lngLatPrecision) {
     vec2 mercatorPosition;
     if (pico_mercator_scale < 2048.0) {
         mercatorPosition = vec2(
@@ -55,8 +55,7 @@ vec4 pico_mercator_lngLatToWorld(vec4 lngLat) {
             (PICO_MERCATOR_PI + log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLat.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
         );
     } else {
-        mercatorPosition = lngLat.xy - pico_mercator_lngLatCenter;
-        mercatorPosition += lngLat.zw;
+        mercatorPosition = (lngLat.xy - pico_mercator_lngLatCenter) + lngLatPrecision;
         mercatorPosition = vec2(
             mercatorPosition.x * pico_mercator_angleDerivatives.x,
             mercatorPosition.y * (pico_mercator_angleDerivatives.y + mercatorPosition.y * pico_mercator_angleDerivatives.z)
@@ -79,8 +78,8 @@ vec4 pico_mercator_worldToClip(vec4 worldPosition) {
     return clipPosition;
 }
 
-vec4 pico_mercator_lngLatToClip(vec4 lngLat) {
-    return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLat));
+vec4 pico_mercator_lngLatToClip(vec2 lngLat, vec2 lngLatPrecision) {
+    return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLat, lngLatPrecision));
 }
 
 `;
@@ -104,10 +103,19 @@ export function pico_mercator_highPrecisionMat4() {
     return mat4.identity(new Float64Array(16));
 }
 
-// export function pico_mercator_highPrecisionPositionBuffer(positions, elementSize = 2) {
-//     let numElements = positions.length / elementSize;
-//     let positionLowBits = new Float32Array(numElements * 2);
-// };
+export function pico_mercator_highPrecisionLngLat(lngLat, stride = 2) {
+    let numElements = lngLat.length / stride;
+    let precisionData = new Float32Array(numElements * 2);
+    for (let i = 0; i < numElements; ++i) {
+        let lli = i * stride;
+        let pi = i * 2;
+
+        precisionData[pi]     = lngLat[lli]     - Math.fround(lngLat[lli]);
+        precisionData[pi + 1] = lngLat[lli + 1] - Math.fround(lngLat[lli + 1]);
+    }
+
+    return precisionData;
+};
 
 export function pico_mercator_injectGLSLProjection(vsSource) {
     let versionMatch = vsSource.match(/#version \d+(\s+es)?\s*\n/);
@@ -128,7 +136,9 @@ export function pico_mercator_uniforms(longitude, latitude, zoom, viewMatrix, pr
     angleDerivatives(uniforms.pico_mercator_angleDerivatives, latitude, latCosine, latCosine2);
     meterDerivatives(uniforms.pico_mercator_meterDerivatives, latitude, latCosine, latCosine2);
 
-    pico_mercator_lngLatToClip(uniforms.pico_mercator_clipCenter, longitude, latitude, viewMatrix, projectionMatrix);
+    let longitude32 = Math.fround(longitude);
+    let latitude32 = Math.fround(latitude);
+    pico_mercator_lngLatToClip(uniforms.pico_mercator_clipCenter, longitude32, latitude32, viewMatrix, projectionMatrix);
 
     mat4.multiply(uniforms.pico_mercator_viewProjectionMatrix, projectionMatrix, viewMatrix);
 

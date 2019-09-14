@@ -57,9 +57,10 @@
     <script type="shader/vs" id="vs">
         #version 300 es
 
-        layout(location=0) in vec4 positions;
-        layout(location=1) in float radius;
-        layout(location=2) in vec3 shapePosition;
+        layout(location=0) in vec2 positions;
+        layout(location=1) in vec2 precisionBits;
+        layout(location=2) in float radius;
+        layout(location=3) in vec3 shapePosition;
 
         uniform float pixelsPerMeter;
         uniform float radiusScale;
@@ -69,7 +70,7 @@
 
         void main() {
             vShapePosition = shapePosition;
-            vec4 worldPosition = pico_mercator_lngLatToWorld(positions);
+            vec4 worldPosition = pico_mercator_lngLatToWorld(positions, precisionBits);
             float r = clamp(radius * pixelsPerMeter * radiusScale, radiusLimits.x / pico_mercator_scale, radiusLimits.y / pico_mercator_scale);
             vec3 offset = shapePosition * r;
             worldPosition.xyz += offset;
@@ -99,7 +100,8 @@
             pico_mercator_mapboxViewMatrix,
             pico_mercator_mapboxProjectionMatrix,
             pico_mercator_pixelsPerMeter,
-            pico_mercator_uniforms
+            pico_mercator_uniforms,
+            pico_mercator_highPrecisionLngLat
         } = PicoMercator;
 
         // const INITIAL_ZOOM = 11.5;
@@ -149,22 +151,22 @@
             fetch('./data/sf.bike.parking.json').then(response => response.json())
         ]).then(([[program], data]) => {
 
-            let positionData = new Float32Array(data.length * 4);
+            let positionData = new Float32Array(data.length * 2);
             let radiusData = new Float32Array(data.length);
 
             for (let i = 0; i < data.length; ++i) {
-                let pi = i * 4;
+                let pi = i * 2;
                 let coords = data[i].COORDINATES;
 
-                positionData[pi] =     coords[0];
+                positionData[pi]     = coords[0];
                 positionData[pi + 1] = coords[1];
-                positionData[pi + 2] = coords[0] - Math.fround(coords[0]);
-                positionData[pi + 3] = coords[1] - Math.fround(coords[1])
-                
                 radiusData[i] = data[i].SPACES;
             }
 
-            let positions = app.createVertexBuffer(PicoGL.FLOAT, 4, positionData);
+            let precisionData = pico_mercator_highPrecisionLngLat(positionData);
+
+            let positions = app.createVertexBuffer(PicoGL.FLOAT, 2, positionData);
+            let precision = app.createVertexBuffer(PicoGL.FLOAT, 2, precisionData);
             let radius = app.createVertexBuffer(PicoGL.FLOAT, 1, radiusData);
             let shapePositions = app.createVertexBuffer(PicoGL.FLOAT, 2, new Float32Array([
                 -1, 1,
@@ -177,8 +179,9 @@
             // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
             let vertexArray = app.createVertexArray()
             .instanceAttributeBuffer(0, positions)
-            .instanceAttributeBuffer(1, radius)
-            .vertexAttributeBuffer(2, shapePositions);
+            .instanceAttributeBuffer(1, precision)
+            .instanceAttributeBuffer(2, radius)
+            .vertexAttributeBuffer(3, shapePositions);
   
             let viewMat = pico_mercator_highPrecisionMat4();
             let projMat = pico_mercator_highPrecisionMat4();
@@ -199,6 +202,7 @@
                 let mapPitch = map.getPitch();
                 let mapBearing = map.getBearing();
 
+                // Seem to lose precision at 0.000001
                 let {lng, lat} = mapCenter;
 
                 pico_mercator_mapboxViewMatrix(viewMat, lng, lat, mapZoom, mapPitch, mapBearing, app.height);
