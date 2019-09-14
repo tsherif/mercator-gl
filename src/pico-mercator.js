@@ -29,6 +29,8 @@
 
 import {mat4, vec4, vec3} from "gl-matrix";
 
+export {mat4} from "gl-matrix";
+
 const PI = Math.PI;
 const PI_4 = PI / 4;
 const DEGREES_TO_RADIANS = PI / 180;
@@ -95,6 +97,8 @@ vec4 pico_mercator_lngLatToClip(vec2 lngLat) {
 // High-precision for intermediate calculations
 let tempCenter64 = new Float64Array(4);
 let tempViewTranslation64 = new Float64Array(3);
+let tempViewMatrix = new Float64Array(16);
+let tempProjectionMatrix = new Float64Array(16);
 
 // Low-precision for uniforms and to avoid instability
 let uniforms = {
@@ -134,7 +138,7 @@ export function pico_mercator_injectGLSLProjection(vsSource) {
 }
 
 
-export function pico_mercator_uniforms(lngLat, zoom, viewMatrix, projectionMatrix, fn) {
+export function pico_mercator_uniforms(lngLat, zoom, viewProjectionMatrix, fn) {
     let longitude = lngLat[0];
     let latitude = lngLat[1];
 
@@ -150,9 +154,9 @@ export function pico_mercator_uniforms(lngLat, zoom, viewMatrix, projectionMatri
 
     lngLat32[0] = longitude;
     lngLat32[1] = latitude;
-    pico_mercator_lngLatToClip(uniforms.pico_mercator_clipCenter, lngLat32, zoom, viewMatrix, projectionMatrix);
+    pico_mercator_lngLatToClip(uniforms.pico_mercator_clipCenter, lngLat32, zoom, viewProjectionMatrix);
 
-    mat4.multiply(uniforms.pico_mercator_viewProjectionMatrix, projectionMatrix, viewMatrix);
+    uniforms.pico_mercator_viewProjectionMatrix.set(viewProjectionMatrix);
 
     fn(uniforms);
 }
@@ -199,6 +203,15 @@ export function pico_mercator_mapboxProjectionMatrix(out, pitch, canvasWidth, ca
     return out;
 }
 
+export function pico_mercator_mapboxViewProjectionMatrix(out, lngLat, zoom, pitch, bearing, canvasWidth, canvasHeight) {
+    pico_mercator_mapboxViewMatrix(tempViewMatrix, lngLat, zoom, pitch, bearing, canvasHeight);
+    pico_mercator_mapboxProjectionMatrix(tempProjectionMatrix, pitch, canvasWidth, canvasHeight);
+
+    mat4.multiply(out, tempProjectionMatrix, tempViewMatrix);
+
+    return out;
+}
+
 export function pico_mercator_pixelsPerMeter(latitude, zoom, latCosine = Math.cos(latitude * DEGREES_TO_RADIANS)) {
     let scale = Math.pow(2, zoom);
     
@@ -234,16 +247,15 @@ export function pico_mercator_lngLatToWorld(out, lngLat, zoom) {
     return out;
 }
 
-export function pico_mercator_worldToClip(out, worldPosition, viewMatrix, projectionMatrix) {
-    vec4.transformMat4(tempCenter64, worldPosition, viewMatrix);
-    vec4.transformMat4(out, tempCenter64, projectionMatrix);
+export function pico_mercator_worldToClip(out, worldPosition, viewProjectionMatrix) {
+    vec4.transformMat4(out, worldPosition, viewProjectionMatrix);
 
     return out;
 }
 
-export function pico_mercator_lngLatToClip(out, lngLat, zoom, viewMatrix, projectionMatrix) {
+export function pico_mercator_lngLatToClip(out, lngLat, zoom, viewProjectionMatrix) {
     pico_mercator_lngLatToWorld(tempCenter64, lngLat, zoom);
-    pico_mercator_worldToClip(out, tempCenter64, viewMatrix, projectionMatrix);
+    pico_mercator_worldToClip(out, tempCenter64, viewProjectionMatrix);
 
     return out;
 }

@@ -77,9 +77,9 @@
         const {
             pico_mercator_injectGLSLProjection,
             pico_mercator_highPrecisionMat4,
-            pico_mercator_mapboxViewMatrix,
-            pico_mercator_mapboxProjectionMatrix,
-            pico_mercator_uniforms
+            pico_mercator_mapboxViewProjectionMatrix,
+            pico_mercator_uniforms,
+            mat4
         } = PicoMercator;
 
         const INITIAL_ZOOM = 14;
@@ -139,8 +139,7 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
-        let viewMat = pico_mercator_highPrecisionMat4();
-        let projMat = pico_mercator_highPrecisionMat4();
+        let viewProjMat = pico_mercator_highPrecisionMat4();
 
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
@@ -152,10 +151,9 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                pico_mercator_mapboxViewMatrix(viewMat, center, zoom, pitch, bearing, app.height);
-                pico_mercator_mapboxProjectionMatrix(projMat, pitch, app.width, app.height);
+                pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height)
 
-                pico_mercator_uniforms(center, zoom, viewMat, projMat, (uniforms) => {
+                pico_mercator_uniforms(center, zoom, viewProjMat, (uniforms) => {
                     for (let name in uniforms) {
                         drawCall.uniform(name, uniforms[name]);
                     }
