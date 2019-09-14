@@ -65,6 +65,10 @@ vec4 pico_mercator_lngLatToWorld(vec2 lngLat, vec2 lngLatPrecision) {
     return vec4(mercatorPosition, 0.0, 1.0);
 }
 
+vec4 pico_mercator_lngLatToWorld(vec2 lngLat) {
+    return pico_mercator_lngLatToWorld(lngLat, vec2(0.0));
+}
+
 
 vec4 pico_mercator_worldToClip(vec4 worldPosition) {
     if (pico_mercator_scale >= 2048.0) {
@@ -80,6 +84,10 @@ vec4 pico_mercator_worldToClip(vec4 worldPosition) {
 
 vec4 pico_mercator_lngLatToClip(vec2 lngLat, vec2 lngLatPrecision) {
     return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLat, lngLatPrecision));
+}
+
+vec4 pico_mercator_lngLatToClip(vec2 lngLat) {
+    return pico_mercator_lngLatToClip(lngLat, vec2(0.0));
 }
 
 `;
@@ -115,7 +123,7 @@ export function pico_mercator_highPrecisionLngLat(lngLat, stride = 2) {
     }
 
     return precisionData;
-};
+}
 
 export function pico_mercator_injectGLSLProjection(vsSource) {
     let versionMatch = vsSource.match(/#version \d+(\s+es)?\s*\n/);

@@ -97,17 +97,15 @@
         const {
             pico_mercator_injectGLSLProjection,
             pico_mercator_highPrecisionMat4,
+            pico_mercator_highPrecisionLngLat,
             pico_mercator_mapboxViewMatrix,
             pico_mercator_mapboxProjectionMatrix,
             pico_mercator_pixelsPerMeter,
-            pico_mercator_uniforms,
-            pico_mercator_highPrecisionLngLat
+            pico_mercator_uniforms
         } = PicoMercator;
 
-        // const INITIAL_ZOOM = 11.5;
-        const INITIAL_ZOOM = 20;
-        // const INITIAL_CENTER = [-122.427, 37.752];
-        const INITIAL_CENTER = [-122.46948713341914, 37.729786030164874];
+        const INITIAL_ZOOM = 11.5;
+        const INITIAL_CENTER = [-122.427, 37.752];
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
