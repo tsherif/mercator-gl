@@ -153,7 +153,7 @@
                 let bearing = map.getBearing();
 
                 pico_mercator_mapboxViewMatrix(viewMat, center, zoom, pitch, bearing, app.height);
-                pico_mercator_mapboxProjectionMatrix(projMat, zoom, pitch, app.width, app.height);
+                pico_mercator_mapboxProjectionMatrix(projMat, pitch, app.width, app.height);
 
                 pico_mercator_uniforms(center, zoom, viewMat, projMat, (uniforms) => {
                     for (let name in uniforms) {

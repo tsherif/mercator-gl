@@ -71,7 +71,7 @@
         void main() {
             vShapePosition = shapePosition;
             vec4 worldPosition = pico_mercator_lngLatToWorld(positions, precisionBits);
-            float r = clamp(radius * pixelsPerMeter * radiusScale, radiusLimits.x / pico_mercator_scale, radiusLimits.y / pico_mercator_scale);
+            float r = clamp(radius * pixelsPerMeter * radiusScale, radiusLimits.x, radiusLimits.y);
             vec3 offset = shapePosition * r;
             worldPosition.xyz += offset;
             gl_Position = pico_mercator_worldToClip(worldPosition);
@@ -201,9 +201,9 @@
                 let bearing = map.getBearing();
 
                 pico_mercator_mapboxViewMatrix(viewMat, center, zoom, pitch, bearing, app.height);
-                pico_mercator_mapboxProjectionMatrix(projMat, zoom, pitch, app.width, app.height);
+                pico_mercator_mapboxProjectionMatrix(projMat, pitch, app.width, app.height);
 
-                drawCall.uniform("pixelsPerMeter", pico_mercator_pixelsPerMeter(center[1]))
+                drawCall.uniform("pixelsPerMeter", pico_mercator_pixelsPerMeter(center[1], zoom))
                 .uniform("radiusScale", 30)
                 .uniform("radiusLimits", radiusLimits);
 
