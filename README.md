@@ -10,7 +10,7 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
     let map = new mapboxgl.Map({
         container: mapboxContainer,
         style: "mapbox://styles/mapbox/streets-v9",
-        center: [-122.427, 37.752],
+        center: [-73.982130, 40.762896],
         zoom: 15
     });
 
@@ -42,21 +42,27 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
 
     // Use 64-bit precision matrices to avoid numerical instability 
     // in intermediate calculations
-    let viewMatrix = pico_mercator_highPrecisionMat4();
-    let projectionMatrix = pico_mercator_highPrecisionMat4();
+    let viewProjectionMatrix = pico_mercator_highPrecisionMat4();
 
     map.on("render", (e) => {
-        let {lng, lat} = map.getCenter();
+        let center = map.getCenter().toArray();
         let zoom = map.getZoom();
         let pitch = map.getPitch();
         let bearing = map.getBearing();
 
-        pico_mercator_mapboxViewMatrix(viewMatrix, lng, lat, zoom, pitch, bearing, canvas.height);
-        pico_mercator_mapboxProjectionMatrix(projectionMatrix, pitch, canvas.width, canvas.height, nearPlaneDistance);
+        pico_mercator_mapboxViewProjectionMatrix(
+            viewProjectionMatrix,
+            center,
+            zoom,
+            pitch,
+            bearing,
+            canvas.width,
+            canvas.height
+        );
 
-        pico_mercator_uniforms(lng, lat, zoom, viewMatrix, projectionMatrix, (uniforms) => {
+        pico_mercator_uniforms(center, zoom, viewProjectionMatrix, (uniforms) => {
             // `uniforms` is a map of uniform names to values, that the application
-            // can use to update uniforms however it likes.
+            // can use to set PicoMercator's uniforms however it likes.
             // NOTE: uniform values are only valid for the duration 
             // of the callback.
         });
