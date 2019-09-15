@@ -126,11 +126,11 @@ export function pico_mercator_highPrecisionMat4() {
     return mat4.identity(new Float64Array(16));
 }
 
-export function pico_mercator_highPrecisionLngLat(lngLat, stride = 2) {
-    let numElements = lngLat.length / stride;
+export function pico_mercator_highPrecisionLngLat(lngLat, offset = 0, stride = 2) {
+    let numElements = (lngLat.length - offset) / stride;
     let precisionData = new Float32Array(numElements * 2);
     for (let i = 0; i < numElements; ++i) {
-        let lli = i * stride;
+        let lli = offset + i * stride;
         let pi = i * 2;
 
         precisionData[pi]     = lngLat[lli]     - Math.fround(lngLat[lli]);
