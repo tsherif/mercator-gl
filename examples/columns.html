@@ -93,7 +93,7 @@
 
         out vec4 fragColor;
         void main() {
-            float light = dot(normalize(vNormal), -LIGHT_DIR);
+            float light = dot(normalize(vNormal), -LIGHT_DIR) + 0.1;
             fragColor = vec4(vColor * light, 1.0);
         }
     </script>
@@ -108,8 +108,10 @@
             pico_mercator_uniforms
         } = PicoMercator;
 
-        const INITIAL_ZOOM = 11.5;
+        const INITIAL_ZOOM = 11.8;
         const INITIAL_CENTER = [-122.427, 37.752];
+        const INITIAL_PITCH = 30;
+        const INITIAL_BEARING = 20;
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
@@ -126,6 +128,8 @@
             style: "mapbox://styles/mapbox/streets-v9",
             center: INITIAL_CENTER,
             zoom: INITIAL_ZOOM,
+            pitch: INITIAL_PITCH,
+            bearing: INITIAL_BEARING,
             maxZoom: 20
         });
         
@@ -153,7 +157,7 @@
             fetch('./data/sf.bike.parking.json').then(response => response.json())
         ]).then(([[program], rawData]) => {
 
-            let grid = pointsToWorldGrid(rawData, 500);
+            let grid = utils.pointsToWorldGrid(rawData, 500);
             let data = grid.data;
 
             let positionData = new Float32Array(data.length * 3);
@@ -178,7 +182,7 @@
             let precision = app.createVertexBuffer(PicoGL.FLOAT, 2, precisionData);
             let colors = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 3, colorData);
 
-            let columnData = createColumn(1, 2, 20);
+            let columnData = utils.createColumn(1, 2, 20);
             let colummPositions = app.createVertexBuffer(PicoGL.FLOAT, 3, columnData.positions);
             let colummNormals = app.createVertexBuffer(PicoGL.FLOAT, 3, columnData.normals);
           
@@ -225,177 +229,6 @@
                 timer.end();
             });
         });
-
-        const R_EARTH = 6378000;
-
-        /**
-         * Aggregate points for the grid layer
-         * @param {array} points
-         * @param {number} cellSize - cell size in meters
-         * @returns {object} - grid data and cell dimension
-         */
-        function pointsToWorldGrid(points, cellSize) {
-          // find the geometric center of sample points
-          const allLat = points.map(p => p.COORDINATES[1]);
-          const latMin = Math.min.apply(null, allLat);
-          const latMax = Math.max.apply(null, allLat);
-
-          const centerLat = (latMin + latMax) / 2;
-
-          const gridOffset = _calculateGridLatLonOffset(cellSize, centerLat);
-
-          // calculate count per cell
-          const gridHash = points.reduce((accu, pt) => {
-            const latIdx = Math.floor((pt.COORDINATES[1] + 90) / gridOffset.latOffset);
-            const lonIdx = Math.floor((pt.COORDINATES[0] + 180) / gridOffset.lonOffset);
-            const key = `${latIdx}-${lonIdx}`;
-
-            accu[key] = accu[key] + 1 || 1;
-            return accu;
-          }, {});
-
-          const maxHeight = Math.max.apply(null, Object.keys(gridHash).map(k => gridHash[k]));
-
-          const data = Object.keys(gridHash).reduce((accu, key) => {
-            const idxs = key.split('-');
-            const latIdx = parseInt(idxs[0], 10);
-            const lonIdx = parseInt(idxs[1], 10);
-
-            accu.push({
-              position: [-180 + gridOffset.lonOffset * lonIdx, -90 + gridOffset.latOffset * latIdx],
-              value: gridHash[key] / maxHeight
-            });
-
-            return accu;
-          }, []);
-
-          return Object.assign({data}, {cellSize});
-        }
-
-        /**
-         * calculate grid layer cell size in lat lon based on world unit size
-         * and current latitude
-         * @param {number} cellSize
-         * @param {number} latitude
-         * @returns {object} - lat delta and lon delta
-         */
-        function _calculateGridLatLonOffset(cellSize, latitude) {
-          const latOffset = calculateLatOffset(cellSize);
-          const lonOffset = calculateLonOffset(latitude, cellSize);
-          return {latOffset, lonOffset};
-        }
-
-        /**
-         * with a given x-km change, calculate the increment of latitude
-         * based on stackoverflow http://stackoverflow.com/questions/7477003
-         * @param {number} dy - change in km
-         * @return {number} - increment in latitude
-         */
-        function calculateLatOffset(dy) {
-          return (dy / R_EARTH) * (180 / Math.PI);
-        }
-
-        /**
-         * with a given x-km change, and current latitude
-         * calculate the increment of longitude
-         * based on stackoverflow http://stackoverflow.com/questions/7477003
-         * @param {number} lat - latitude of current location (based on city)
-         * @param {number} dx - change in km
-         * @return {number} - increment in longitude
-         */
-        function calculateLonOffset(lat, dx) {
-          return ((dx / R_EARTH) * (180 / Math.PI)) / Math.cos((lat * Math.PI) / 180);
-        }
-
-
-        /* eslint-disable max-statements, complexity */
-        function createColumn(radius = 1, height = 1, nradial = 10) {
-          let vertices;
-
-          const vertsAroundEdge = nradial + 1; // loop
-          const numVertices = vertsAroundEdge * 3; // top, side top edge, side bottom edge
-
-          const stepAngle = (Math.PI * 2) / nradial;
-
-          // Used for wireframe
-          const indices = new Uint16Array(nradial * 3 * 2); // top loop, side vertical, bottom loop
-
-          const positions = new Float32Array(numVertices * 3);
-          const normals = new Float32Array(numVertices * 3);
-
-          let i = 0;
-
-          // side tesselation: 0, 1, 2, 3, 4, 5, ...
-          //
-          // 0 - 2 - 4  ... top
-          // | / | / |
-          // 1 - 3 - 5  ... bottom
-          //
-          for (let j = 0; j < vertsAroundEdge; j++) {
-            const a = j * stepAngle;
-            const vertex = vertices && vertices[j % nradial];
-            const nextVertex = vertices && vertices[(j + 1) % nradial];
-            const sin = Math.sin(a);
-            const cos = Math.cos(a);
-
-            for (let k = 0; k < 2; k++) {
-              positions[i + 0] = vertex ? vertex[0] : cos * radius;
-              positions[i + 1] = vertex ? vertex[1] : sin * radius;
-              positions[i + 2] = (1 / 2 - k) * height;
-
-              normals[i + 0] = vertex ? nextVertex[0] - vertex[0] : cos;
-              normals[i + 1] = vertex ? nextVertex[1] - vertex[1] : sin;
-
-              i += 3;
-            }
-          }
-
-          // top tesselation: 0, -1, 1, -2, 2, -3, 3, ...
-          //
-          //    0 -- 1
-          //   /      \
-          // -1        2
-          //  |        |
-          // -2        3
-          //   \      /
-          //   -3 -- 4
-          //
-          for (let j = 0; j < vertsAroundEdge; j++) {
-            const v = Math.floor(j / 2) * Math.sign((j % 2) - 0.5);
-            const a = v * stepAngle;
-            const vertex = vertices && vertices[(v + nradial) % nradial];
-            const sin = Math.sin(a);
-            const cos = Math.cos(a);
-
-            positions[i + 0] = vertex ? vertex[0] : cos * radius;
-            positions[i + 1] = vertex ? vertex[1] : sin * radius;
-            positions[i + 2] = height / 2;
-
-            normals[i + 2] = 1;
-
-            i += 3;
-          }
-
-          let index = 0;
-          for (let j = 0; j < nradial; j++) {
-            // top loop
-            indices[index++] = j * 2 + 0;
-            indices[index++] = j * 2 + 2;
-            // side vertical
-            indices[index++] = j * 2 + 0;
-            indices[index++] = j * 2 + 1;
-            // bottom loop
-            indices[index++] = j * 2 + 1;
-            indices[index++] = j * 2 + 3;
-          }
-
-          return {
-            indices,
-            positions,
-            normals
-          };
-        }
-
 
     </script>
 </body>
