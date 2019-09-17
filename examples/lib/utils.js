@@ -47,42 +47,61 @@
         // From deck.gl: https://github.com/uber/deck.gl/blob/master/examples/layer-browser/src/utils/grid-aggregator.js
         // Used under MIT license
         pointsToWorldGrid(points, cellSize) {
-          // find the geometric center of sample points
-          const allLat = points.map(p => p.COORDINATES[1]);
-          const latMin = Math.min.apply(null, allLat);
-          const latMax = Math.max.apply(null, allLat);
+          let numPoints = points.length;
+          let latMin = Number.POSITIVE_INFINITY;
+          let latMax = Number.NEGATIVE_INFINITY;
 
-          const centerLat = (latMin + latMax) / 2;
+          for (let i = 0; i < numPoints; ++i) {
+            let lat = points[i].COORDINATES[1];
+            latMin = Math.min(latMin, lat);
+            latMax = Math.max(latMax, lat);
+          }
 
-          const latOffset = (cellSize / EARTH_RADIUS) * (180 / Math.PI);
-          const lonOffset = ((cellSize / EARTH_RADIUS) * (180 / Math.PI)) / Math.cos((centerLat * Math.PI) / 180);
+          let centerLat = (latMin + latMax) / 2;
 
-          // calculate count per cell
-          const gridHash = points.reduce((accu, pt) => {
-            const latIdx = Math.floor((pt.COORDINATES[1] + 90) / latOffset);
-            const lonIdx = Math.floor((pt.COORDINATES[0] + 180) / lonOffset);
-            const key = `${latIdx}-${lonIdx}`;
+          let latOffset = (cellSize / EARTH_RADIUS) * (180 / Math.PI);
+          let lonOffset = ((cellSize / EARTH_RADIUS) * (180 / Math.PI)) / Math.cos((centerLat * Math.PI) / 180);
 
-            accu[key] = accu[key] + 1 || 1;
-            return accu;
-          }, {});
+          let grid = {};
+          let maxHeight = Number.NEGATIVE_INFINITY;
 
-          const maxHeight = Math.max.apply(null, Object.keys(gridHash).map(k => gridHash[k]));
+          let numCells = 0;
+          for (let i = 0; i < numPoints; ++i) {
+            let coords = points[i].COORDINATES;
+            let latIdx = Math.floor((coords[1] + 90) / latOffset);
+            let lonIdx = Math.floor((coords[0] + 180) / lonOffset);
 
-          const data = Object.keys(gridHash).reduce((accu, key) => {
-            const idxs = key.split('-');
-            const latIdx = parseInt(idxs[0], 10);
-            const lonIdx = parseInt(idxs[1], 10);
+            if (!grid[latIdx]) {
+              grid[latIdx] = {};
+            }
+            if (!grid[latIdx][lonIdx]) {
+              grid[latIdx][lonIdx] = 0;
+              numCells++;
+            }
+            ++grid[latIdx][lonIdx];
 
-            accu.push({
-              position: [-180 + lonOffset * lonIdx, -90 + latOffset * latIdx],
-              value: gridHash[key] / maxHeight
-            });
+            maxHeight = Math.max(maxHeight, grid[latIdx][lonIdx]);
+          }
 
-            return accu;
-          }, []);
+          let data = new Array(numCells);
+          let i = 0;
 
-          return Object.assign({data}, {cellSize});
+          for (let latKey in grid) {
+            const latIdx = parseInt(latKey, 10);
+            let lonData = grid[latKey];
+
+            for (let lonKey in lonData) {
+              let lonIdx = parseInt(lonKey, 10);
+              let value = grid[latKey][lonKey];
+
+              data[i++] = {
+                position: [-180 + lonOffset * lonIdx, -90 + latOffset * latIdx],
+                value: value / maxHeight
+              };
+            }
+          };
+
+          return data;
         },
 
         // From deck.gl: https://github.com/uber/deck.gl/blob/master/modules/layers/src/column-layer/column-geometry.js

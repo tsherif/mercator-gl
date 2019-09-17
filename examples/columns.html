@@ -156,9 +156,8 @@
             app.createPrograms([vsSource, fsSource]),
             fetch('./data/sf.bike.parking.json').then(response => response.json())
         ]).then(([[program], rawData]) => {
-
-            let grid = utils.pointsToWorldGrid(rawData, 500);
-            let data = grid.data;
+            
+            let data = utils.pointsToWorldGrid(rawData, 500);
 
             let positionData = new Float32Array(data.length * 3);
             let colorData = new Uint8Array(data.length * 3);
