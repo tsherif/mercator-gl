@@ -59,34 +59,42 @@
 
         layout(location=0) in vec3 positions;
         layout(location=1) in vec2 precisionBits;
-        layout(location=2) in vec3 shapePosition;
+        layout(location=2) in vec3 colors;
+        layout(location=3) in vec3 columnPosition;
+        layout(location=4) in vec3 columnNormal;
 
         uniform float pixelsPerMeter;
 
-        out vec3 vShapePosition;
+        out vec3 vNormal;
+        out vec3 vColor;
 
         void main() {
-            vShapePosition = shapePosition;
-            float radius = positions.z;
-            vec4 worldPosition = pico_mercator_lngLatToWorld(positions, precisionBits);
-            vec3 offset = shapePosition * 200.0 * pixelsPerMeter;
-            worldPosition.xyz += offset;
+            vec3 lngLatElevation = vec3(
+                positions.xy, 
+                (columnPosition.z * 0.5 + 0.5) * positions.z
+            );
+
+            vec4 worldPosition = pico_mercator_lngLatToWorld(lngLatElevation, precisionBits);
+            worldPosition.xy += columnPosition.xy * 200.0 * pixelsPerMeter;
+            vNormal = columnNormal;
             gl_Position = pico_mercator_worldToClip(worldPosition);
+        
+            vColor = colors;
         }
     </script>
     <script type="shader/fs" id="fs">
         #version 300 es
         precision highp float;
-                
-        in vec3 vShapePosition;
+        
+        #define LIGHT_DIR normalize(vec3(-1.0, 1.0, -1.0))
+
+        in vec3 vNormal;
+        in vec3 vColor;
 
         out vec4 fragColor;
         void main() {
-            if (dot(vShapePosition, vShapePosition) > 1.0) {
-                discard;
-            }
-
-            fragColor = vec4(1.0, 0.5, 0.0, 1.0);
+            float light = dot(normalize(vNormal), -LIGHT_DIR);
+            fragColor = vec4(vColor * light, 1.0);
         }
     </script>
     <script>
@@ -149,6 +157,7 @@
             let data = grid.data;
 
             let positionData = new Float32Array(data.length * 3);
+            let colorData = new Uint8Array(data.length * 3);
 
             for (let i = 0; i < data.length; ++i) {
                 let pi = i * 3;
@@ -157,28 +166,32 @@
                 positionData[pi]     = coords[0];
                 positionData[pi + 1] = coords[1];
                 positionData[pi + 2] = data[i].value * 5000;
+
+                colorData[pi] = 255;
+                colorData[pi + 1] = 166;
+                colorData[pi + 2] = data[i].value * 255;
             }
 
             let precisionData = pico_mercator_highPrecisionLngLat(positionData, 3);
 
             let positions = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData);
             let precision = app.createVertexBuffer(PicoGL.FLOAT, 2, precisionData);
-            let shapePositions = app.createVertexBuffer(PicoGL.FLOAT, 2, new Float32Array([
-                -1, 1,
-                -1, -1,
-                1, 1, 
-                1, -1 
-            ]));
+            let colors = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 3, colorData);
+
+            let columnData = createColumn(1, 2, 20);
+            let colummPositions = app.createVertexBuffer(PicoGL.FLOAT, 3, columnData.positions);
+            let colummNormals = app.createVertexBuffer(PicoGL.FLOAT, 3, columnData.normals);
           
 
             // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
             let vertexArray = app.createVertexArray()
             .instanceAttributeBuffer(0, positions)
             .instanceAttributeBuffer(1, precision)
-            .vertexAttributeBuffer(2, shapePositions);
+            .instanceAttributeBuffer(2, colors, {normalized: true})
+            .vertexAttributeBuffer(3, colummPositions)
+            .vertexAttributeBuffer(4, colummNormals);
   
             let viewProjMat = pico_mercator_highPrecisionMat4();
-            let radiusLimits = new Float32Array([1, 30]);
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
@@ -295,7 +308,93 @@
         }
 
 
-        
+        /* eslint-disable max-statements, complexity */
+        function createColumn(radius = 1, height = 1, nradial = 10) {
+          let vertices;
+
+          const vertsAroundEdge = nradial + 1; // loop
+          const numVertices = vertsAroundEdge * 3; // top, side top edge, side bottom edge
+
+          const stepAngle = (Math.PI * 2) / nradial;
+
+          // Used for wireframe
+          const indices = new Uint16Array(nradial * 3 * 2); // top loop, side vertical, bottom loop
+
+          const positions = new Float32Array(numVertices * 3);
+          const normals = new Float32Array(numVertices * 3);
+
+          let i = 0;
+
+          // side tesselation: 0, 1, 2, 3, 4, 5, ...
+          //
+          // 0 - 2 - 4  ... top
+          // | / | / |
+          // 1 - 3 - 5  ... bottom
+          //
+          for (let j = 0; j < vertsAroundEdge; j++) {
+            const a = j * stepAngle;
+            const vertex = vertices && vertices[j % nradial];
+            const nextVertex = vertices && vertices[(j + 1) % nradial];
+            const sin = Math.sin(a);
+            const cos = Math.cos(a);
+
+            for (let k = 0; k < 2; k++) {
+              positions[i + 0] = vertex ? vertex[0] : cos * radius;
+              positions[i + 1] = vertex ? vertex[1] : sin * radius;
+              positions[i + 2] = (1 / 2 - k) * height;
+
+              normals[i + 0] = vertex ? nextVertex[0] - vertex[0] : cos;
+              normals[i + 1] = vertex ? nextVertex[1] - vertex[1] : sin;
+
+              i += 3;
+            }
+          }
+
+          // top tesselation: 0, -1, 1, -2, 2, -3, 3, ...
+          //
+          //    0 -- 1
+          //   /      \
+          // -1        2
+          //  |        |
+          // -2        3
+          //   \      /
+          //   -3 -- 4
+          //
+          for (let j = 0; j < vertsAroundEdge; j++) {
+            const v = Math.floor(j / 2) * Math.sign((j % 2) - 0.5);
+            const a = v * stepAngle;
+            const vertex = vertices && vertices[(v + nradial) % nradial];
+            const sin = Math.sin(a);
+            const cos = Math.cos(a);
+
+            positions[i + 0] = vertex ? vertex[0] : cos * radius;
+            positions[i + 1] = vertex ? vertex[1] : sin * radius;
+            positions[i + 2] = height / 2;
+
+            normals[i + 2] = 1;
+
+            i += 3;
+          }
+
+          let index = 0;
+          for (let j = 0; j < nradial; j++) {
+            // top loop
+            indices[index++] = j * 2 + 0;
+            indices[index++] = j * 2 + 2;
+            // side vertical
+            indices[index++] = j * 2 + 0;
+            indices[index++] = j * 2 + 1;
+            // bottom loop
+            indices[index++] = j * 2 + 1;
+            indices[index++] = j * 2 + 3;
+          }
+
+          return {
+            indices,
+            positions,
+            normals
+          };
+        }
 
 
     </script>
