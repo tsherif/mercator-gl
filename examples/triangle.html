@@ -151,7 +151,7 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height)
+                pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
 
                 pico_mercator_uniforms(center, zoom, viewProjMat, (uniforms) => {
                     for (let name in uniforms) {

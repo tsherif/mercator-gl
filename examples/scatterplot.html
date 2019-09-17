@@ -198,7 +198,7 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height)
+                pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
 
                 drawCall.uniform("pixelsPerMeter", pico_mercator_pixelsPerMeter(center[1], zoom))
                 .uniform("radiusScale", 30)
