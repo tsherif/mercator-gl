@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PicoMercator Columns</title>
+    <meta charset="utf-8">
+    <script src="../build/pico-mercator.min.js"></script>
+    <script src="./lib/picogl.min.js"></script>
+    <script src="./lib/mapbox-gl.js"></script>
+    <script src="./lib/utils.js"></script>
+    <link href="./lib/mapbox-gl.css" rel="stylesheet" />
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+
+        #mapbox {
+            position: absolute;
+        }
+
+        #gl-canvas {
+            position: absolute;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2017 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<!-- 
+    Port of ColumnLayer example from deck.gl
+    https://github.com/uber/deck.gl/tree/master/examples/layer-browser
+ -->
+<body>
+    <div id="mapbox"></div>
+    <canvas id="gl-canvas"></canvas>
+    <script type="shader/vs" id="vs">
+        #version 300 es
+
+        layout(location=0) in vec3 positions;
+        layout(location=1) in vec2 precisionBits;
+        layout(location=2) in vec3 shapePosition;
+
+        uniform float pixelsPerMeter;
+
+        out vec3 vShapePosition;
+
+        void main() {
+            vShapePosition = shapePosition;
+            float radius = positions.z;
+            vec4 worldPosition = pico_mercator_lngLatToWorld(positions, precisionBits);
+            vec3 offset = shapePosition * 200.0 * pixelsPerMeter;
+            worldPosition.xyz += offset;
+            gl_Position = pico_mercator_worldToClip(worldPosition);
+        }
+    </script>
+    <script type="shader/fs" id="fs">
+        #version 300 es
+        precision highp float;
+                
+        in vec3 vShapePosition;
+
+        out vec4 fragColor;
+        void main() {
+            if (dot(vShapePosition, vShapePosition) > 1.0) {
+                discard;
+            }
+
+            fragColor = vec4(1.0, 0.5, 0.0, 1.0);
+        }
+    </script>
+    <script>
+
+        const {
+            pico_mercator_injectGLSLProjection,
+            pico_mercator_highPrecisionMat4,
+            pico_mercator_highPrecisionLngLat,
+            pico_mercator_mapboxViewProjectionMatrix,
+            pico_mercator_pixelsPerMeter,
+            pico_mercator_uniforms
+        } = PicoMercator;
+
+        const INITIAL_ZOOM = 11.5;
+        const INITIAL_CENTER = [-122.427, 37.752];
+
+        let mapboxContainer = document.getElementById("mapbox");
+        let canvas = document.getElementById("gl-canvas");
+        
+        mapboxContainer.style.width = `${window.innerWidth}px`;
+        mapboxContainer.style.height = `${window.innerHeight}px`;
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        mapboxgl.accessToken = 'pk.eyJ1IjoidHNoZXJpZiIsImEiOiJjanJ1dm1iNjYwZXM2M3lta2FjZ3dqa3JpIn0.js3Fu08SNC8Ca4VEWeiZ5A';
+        let map = new mapboxgl.Map({
+            container: mapboxContainer,
+            style: "mapbox://styles/mapbox/streets-v9",
+            center: INITIAL_CENTER,
+            zoom: INITIAL_ZOOM,
+            maxZoom: 20
+        });
+        
+        let app = PicoGL.createApp(canvas, { alpha: true })
+        .clearColor(0.0, 0.0, 0.0, 0.0)
+        .depthTest();
+
+        let timer = app.createTimer();
+
+        window.onresize = function() {
+            app.resize(window.innerWidth, window.innerHeight);
+            mapboxContainer.style.width = `${app.width}px`;
+            mapboxContainer.style.height = `${app.height}px`;
+            map.resize();
+        }
+
+        utils.addTimerElement();
+
+        // PROGRAM 
+        let vsSource =  pico_mercator_injectGLSLProjection(document.getElementById("vs").text.trim());
+        let fsSource =  document.getElementById("fs").text.trim();
+
+        Promise.all([
+            app.createPrograms([vsSource, fsSource]),
+            fetch('./data/sf.bike.parking.json').then(response => response.json())
+        ]).then(([[program], rawData]) => {
+
+            let grid = pointsToWorldGrid(rawData, 500);
+            let data = grid.data;
+
+            let positionData = new Float32Array(data.length * 3);
+
+            for (let i = 0; i < data.length; ++i) {
+                let pi = i * 3;
+                let coords = data[i].position;
+
+                positionData[pi]     = coords[0];
+                positionData[pi + 1] = coords[1];
+                positionData[pi + 2] = data[i].value * 5000;
+            }
+
+            let precisionData = pico_mercator_highPrecisionLngLat(positionData, 3);
+
+            let positions = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData);
+            let precision = app.createVertexBuffer(PicoGL.FLOAT, 2, precisionData);
+            let shapePositions = app.createVertexBuffer(PicoGL.FLOAT, 2, new Float32Array([
+                -1, 1,
+                -1, -1,
+                1, 1, 
+                1, -1 
+            ]));
+          
+
+            // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
+            let vertexArray = app.createVertexArray()
+            .instanceAttributeBuffer(0, positions)
+            .instanceAttributeBuffer(1, precision)
+            .vertexAttributeBuffer(2, shapePositions);
+  
+            let viewProjMat = pico_mercator_highPrecisionMat4();
+            let radiusLimits = new Float32Array([1, 30]);
+
+            // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
+            let drawCall = app.createDrawCall(program, vertexArray)
+            .primitive(PicoGL.TRIANGLE_STRIP);
+
+            map.on("render", (e) => {
+                if (timer.ready()) {
+                    utils.updateTimerElement(timer.cpuTime, timer.gpuTime);
+                }
+                timer.start();
+
+                let center = map.getCenter().toArray();
+                let zoom = map.getZoom();
+                let pitch = map.getPitch();
+                let bearing = map.getBearing();
+
+                pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
+
+                drawCall.uniform("pixelsPerMeter", pico_mercator_pixelsPerMeter(center[1], zoom));
+
+                pico_mercator_uniforms(center, zoom, viewProjMat, (uniforms) => {
+                    for (let name in uniforms) {
+                        drawCall.uniform(name, uniforms[name]);
+                    }
+                });
+
+                // DRAW
+                app.clear();
+                drawCall.draw();
+
+                timer.end();
+            });
+        });
+
+        const R_EARTH = 6378000;
+
+        /**
+         * Aggregate points for the grid layer
+         * @param {array} points
+         * @param {number} cellSize - cell size in meters
+         * @returns {object} - grid data and cell dimension
+         */
+        function pointsToWorldGrid(points, cellSize) {
+          // find the geometric center of sample points
+          const allLat = points.map(p => p.COORDINATES[1]);
+          const latMin = Math.min.apply(null, allLat);
+          const latMax = Math.max.apply(null, allLat);
+
+          const centerLat = (latMin + latMax) / 2;
+
+          const gridOffset = _calculateGridLatLonOffset(cellSize, centerLat);
+
+          // calculate count per cell
+          const gridHash = points.reduce((accu, pt) => {
+            const latIdx = Math.floor((pt.COORDINATES[1] + 90) / gridOffset.latOffset);
+            const lonIdx = Math.floor((pt.COORDINATES[0] + 180) / gridOffset.lonOffset);
+            const key = `${latIdx}-${lonIdx}`;
+
+            accu[key] = accu[key] + 1 || 1;
+            return accu;
+          }, {});
+
+          const maxHeight = Math.max.apply(null, Object.keys(gridHash).map(k => gridHash[k]));
+
+          const data = Object.keys(gridHash).reduce((accu, key) => {
+            const idxs = key.split('-');
+            const latIdx = parseInt(idxs[0], 10);
+            const lonIdx = parseInt(idxs[1], 10);
+
+            accu.push({
+              position: [-180 + gridOffset.lonOffset * lonIdx, -90 + gridOffset.latOffset * latIdx],
+              value: gridHash[key] / maxHeight
+            });
+
+            return accu;
+          }, []);
+
+          return Object.assign({data}, {cellSize});
+        }
+
+        /**
+         * calculate grid layer cell size in lat lon based on world unit size
+         * and current latitude
+         * @param {number} cellSize
+         * @param {number} latitude
+         * @returns {object} - lat delta and lon delta
+         */
+        function _calculateGridLatLonOffset(cellSize, latitude) {
+          const latOffset = calculateLatOffset(cellSize);
+          const lonOffset = calculateLonOffset(latitude, cellSize);
+          return {latOffset, lonOffset};
+        }
+
+        /**
+         * with a given x-km change, calculate the increment of latitude
+         * based on stackoverflow http://stackoverflow.com/questions/7477003
+         * @param {number} dy - change in km
+         * @return {number} - increment in latitude
+         */
+        function calculateLatOffset(dy) {
+          return (dy / R_EARTH) * (180 / Math.PI);
+        }
+
+        /**
+         * with a given x-km change, and current latitude
+         * calculate the increment of longitude
+         * based on stackoverflow http://stackoverflow.com/questions/7477003
+         * @param {number} lat - latitude of current location (based on city)
+         * @param {number} dx - change in km
+         * @return {number} - increment in longitude
+         */
+        function calculateLonOffset(lat, dx) {
+          return ((dx / R_EARTH) * (180 / Math.PI)) / Math.cos((lat * Math.PI) / 180);
+        }
+
+
+        
+
+
+    </script>
+</body>
+</html>
