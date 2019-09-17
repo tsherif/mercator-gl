@@ -49,28 +49,38 @@ uniform float pico_mercator_scale;
 uniform vec4 pico_mercator_clipCenter;
 uniform mat4 pico_mercator_viewProjectionMatrix;
 
-vec4 pico_mercator_lngLatToWorld(vec2 lngLat, vec2 lngLatPrecision) {
-    vec2 mercatorPosition;
+vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation, vec2 lngLatPrecision) {
+    vec3 mercatorPosition;
     if (pico_mercator_scale < 2048.0) {
-        mercatorPosition = vec2(
-            (radians(lngLat.x) + PICO_MERCATOR_PI) * PICO_MERCATOR_WORLD_SCALE,
-            (PICO_MERCATOR_PI + log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLat.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
+        mercatorPosition.xy = vec2(
+            (radians(lngLatElevation.x) + PICO_MERCATOR_PI) * PICO_MERCATOR_WORLD_SCALE,
+            (PICO_MERCATOR_PI + log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLatElevation.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
         ) * pico_mercator_scale;
+        mercatorPosition.z = lngLatElevation.z * pico_mercator_meterDerivatives.x;
     } else {
-        mercatorPosition = (lngLat.xy - pico_mercator_lngLatCenter) + lngLatPrecision;
-        mercatorPosition = vec2(
+        mercatorPosition.xy = (lngLatElevation.xy - pico_mercator_lngLatCenter) + lngLatPrecision;
+        float dy = mercatorPosition.y;
+        mercatorPosition = vec3(
             mercatorPosition.x * pico_mercator_angleDerivatives.x,
-            mercatorPosition.y * (pico_mercator_angleDerivatives.y + mercatorPosition.y * pico_mercator_angleDerivatives.z)
+            mercatorPosition.y * (pico_mercator_angleDerivatives.y + dy * pico_mercator_angleDerivatives.z),
+            lngLatElevation.z * (pico_mercator_meterDerivatives.x + dy * pico_mercator_meterDerivatives.y)
         );
     }
 
-    return vec4(mercatorPosition, 0.0, 1.0);
+    return vec4(mercatorPosition, 1.0);
+}
+
+vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation) {
+    return pico_mercator_lngLatToWorld(lngLatElevation, vec2(0.0));
+}
+
+vec4 pico_mercator_lngLatToWorld(vec2 lngLat, vec2 lngLatPrecision) {
+    return pico_mercator_lngLatToWorld(vec3(lngLat, 0.0), lngLatPrecision);
 }
 
 vec4 pico_mercator_lngLatToWorld(vec2 lngLat) {
-    return pico_mercator_lngLatToWorld(lngLat, vec2(0.0));
+    return pico_mercator_lngLatToWorld(vec3(lngLat, 0.0));
 }
-
 
 vec4 pico_mercator_worldToClip(vec4 worldPosition) {
     if (pico_mercator_scale >= 2048.0) {

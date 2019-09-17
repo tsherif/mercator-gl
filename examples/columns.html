@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PicoMercator Scatterplot</title>
+    <title>PicoMercator Columns</title>
     <meta charset="utf-8">
     <script src="../build/pico-mercator.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
@@ -48,7 +48,7 @@
   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 <!-- 
-    Port of ScatterPlotLayer example from deck.gl
+    Port of ColumnLayer example from deck.gl
     https://github.com/uber/deck.gl/tree/master/examples/layer-browser
  -->
 <body>
@@ -57,39 +57,44 @@
     <script type="shader/vs" id="vs">
         #version 300 es
 
-        layout(location=0) in vec2 positions;
+        layout(location=0) in vec3 positions;
         layout(location=1) in vec2 precisionBits;
-        layout(location=2) in float radius;
-        layout(location=3) in vec3 shapePosition;
+        layout(location=2) in vec3 colors;
+        layout(location=3) in vec3 columnPosition;
+        layout(location=4) in vec3 columnNormal;
 
         uniform float pixelsPerMeter;
-        uniform float radiusScale;
-        uniform vec2 radiusLimits;
 
-        out vec3 vShapePosition;
+        out vec3 vNormal;
+        out vec3 vColor;
 
         void main() {
-            vShapePosition = shapePosition;
-            vec4 worldPosition = pico_mercator_lngLatToWorld(positions, precisionBits);
-            float r = clamp(radius * pixelsPerMeter * radiusScale, radiusLimits.x, radiusLimits.y);
-            vec3 offset = shapePosition * r;
-            worldPosition.xyz += offset;
+            vec3 lngLatElevation = vec3(
+                positions.xy, 
+                (columnPosition.z * 0.5 + 0.5) * positions.z
+            );
+
+            vec4 worldPosition = pico_mercator_lngLatToWorld(lngLatElevation, precisionBits);
+            worldPosition.xy += columnPosition.xy * 200.0 * pixelsPerMeter;
+            vNormal = columnNormal;
             gl_Position = pico_mercator_worldToClip(worldPosition);
+        
+            vColor = colors;
         }
     </script>
     <script type="shader/fs" id="fs">
         #version 300 es
         precision highp float;
-                
-        in vec3 vShapePosition;
+        
+        #define LIGHT_DIR normalize(vec3(-1.0, 1.0, -1.0))
+
+        in vec3 vNormal;
+        in vec3 vColor;
 
         out vec4 fragColor;
         void main() {
-            if (dot(vShapePosition, vShapePosition) > 1.0) {
-                discard;
-            }
-
-            fragColor = vec4(1.0, 0.5, 0.0, 1.0);
+            float light = dot(normalize(vNormal), -LIGHT_DIR) + 0.1;
+            fragColor = vec4(vColor * light, 1.0);
         }
     </script>
     <script>
@@ -103,8 +108,10 @@
             pico_mercator_uniforms
         } = PicoMercator;
 
-        const INITIAL_ZOOM = 11.5;
+        const INITIAL_ZOOM = 11.8;
         const INITIAL_CENTER = [-122.427, 37.752];
+        const INITIAL_PITCH = 30;
+        const INITIAL_BEARING = 20;
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
@@ -121,6 +128,8 @@
             style: "mapbox://styles/mapbox/streets-v9",
             center: INITIAL_CENTER,
             zoom: INITIAL_ZOOM,
+            pitch: INITIAL_PITCH,
+            bearing: INITIAL_BEARING,
             maxZoom: 20
         });
         
@@ -146,42 +155,46 @@
         Promise.all([
             app.createPrograms([vsSource, fsSource]),
             fetch('./data/sf.bike.parking.json').then(response => response.json())
-        ]).then(([[program], data]) => {
+        ]).then(([[program], rawData]) => {
+            
+            let data = utils.pointsToWorldGrid(rawData, 500);
 
-            let positionData = new Float32Array(data.length * 2);
-            let radiusData = new Float32Array(data.length);
+            let positionData = new Float32Array(data.length * 3);
+            let colorData = new Uint8Array(data.length * 3);
 
             for (let i = 0; i < data.length; ++i) {
-                let pi = i * 2;
-                let coords = data[i].COORDINATES;
+                let pi = i * 3;
+                let coords = data[i].position;
 
                 positionData[pi]     = coords[0];
                 positionData[pi + 1] = coords[1];
-                radiusData[i] = data[i].SPACES;
+                positionData[pi + 2] = data[i].value * 5000;
+
+                colorData[pi] = 255;
+                colorData[pi + 1] = 166;
+                colorData[pi + 2] = data[i].value * 255;
             }
 
-            let precisionData = pico_mercator_highPrecisionLngLat(positionData);
+            let precisionData = pico_mercator_highPrecisionLngLat(positionData, 3);
 
-            let positions = app.createVertexBuffer(PicoGL.FLOAT, 2, positionData);
+            let positions = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData);
             let precision = app.createVertexBuffer(PicoGL.FLOAT, 2, precisionData);
-            let radius = app.createVertexBuffer(PicoGL.FLOAT, 1, radiusData);
-            let shapePositions = app.createVertexBuffer(PicoGL.FLOAT, 2, new Float32Array([
-                -1, 1,
-                -1, -1,
-                1, 1, 
-                1, -1 
-            ]));
+            let colors = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 3, colorData);
+
+            let columnData = utils.createColumn(1, 2, 20);
+            let colummPositions = app.createVertexBuffer(PicoGL.FLOAT, 3, columnData.positions);
+            let colummNormals = app.createVertexBuffer(PicoGL.FLOAT, 3, columnData.normals);
           
 
             // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
             let vertexArray = app.createVertexArray()
             .instanceAttributeBuffer(0, positions)
             .instanceAttributeBuffer(1, precision)
-            .instanceAttributeBuffer(2, radius)
-            .vertexAttributeBuffer(3, shapePositions);
+            .instanceAttributeBuffer(2, colors, {normalized: true})
+            .vertexAttributeBuffer(3, colummPositions)
+            .vertexAttributeBuffer(4, colummNormals);
   
             let viewProjMat = pico_mercator_highPrecisionMat4();
-            let radiusLimits = new Float32Array([1, 30]);
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
@@ -200,9 +213,7 @@
 
                 pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
 
-                drawCall.uniform("pixelsPerMeter", pico_mercator_pixelsPerMeter(center[1], zoom))
-                .uniform("radiusScale", 30)
-                .uniform("radiusLimits", radiusLimits);
+                drawCall.uniform("pixelsPerMeter", pico_mercator_pixelsPerMeter(center[1], zoom));
 
                 pico_mercator_uniforms(center, zoom, viewProjMat, (uniforms) => {
                     for (let name in uniforms) {
@@ -217,9 +228,6 @@
                 timer.end();
             });
         });
-
-        
-
 
     </script>
 </body>
