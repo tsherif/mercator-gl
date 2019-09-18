@@ -24,12 +24,13 @@ module.exports = {
         minimize: true,
         minimizer: [new TerserPlugin({
             sourceMap: true,
+            extractComments: false,
             terserOptions: {
               output: {
                 comments: /^\**!/,
               },
             }
-        })],
+        })]
     },
     devtool: "source-map"
 };
