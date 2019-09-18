@@ -170,9 +170,9 @@
                 positionData[pi + 1] = coords[1];
                 positionData[pi + 2] = data[i].value * 5000;
 
-                colorData[pi] = 255;
-                colorData[pi + 1] = 166;
-                colorData[pi + 2] = data[i].value * 255;
+                colorData[pi] = data[i].value * 255;
+                colorData[pi + 1] = 0;
+                colorData[pi + 2] = 255 - data[i].value * 255;
             }
 
             let precisionData = pico_mercator_highPrecisionLngLat(positionData, 3);
