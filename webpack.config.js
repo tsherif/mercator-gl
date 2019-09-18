@@ -3,7 +3,7 @@ const path = require('path');
 const webpack = require("webpack");
 const TerserPlugin = require("terser-webpack-plugin");
 
-const license = fs.readFileSync('LICENSE');
+const license = fs.readFileSync('LICENSE', {encoding: "utf8"});
 
 module.exports = {
     entry: "./src/pico-mercator.js",
@@ -17,16 +17,17 @@ module.exports = {
     plugins: [
         // Placeholder for actual license
         new webpack.BannerPlugin({
-          banner: 'DUMMY_BANNER'
+          banner: license
         })
     ],
     optimization: {
         minimize: true,
         minimizer: [new TerserPlugin({
             sourceMap: true,
-            extractComments: {
-                condition: true,
-                banner: `\n${license}\n`,
+            terserOptions: {
+              output: {
+                comments: /^\**!/,
+              },
             }
         })],
     },
