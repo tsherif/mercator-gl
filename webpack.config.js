@@ -15,7 +15,6 @@ module.exports = {
         libraryTarget: "umd"
     },
     plugins: [
-        // Placeholder for actual license
         new webpack.BannerPlugin({
           banner: license
         })
