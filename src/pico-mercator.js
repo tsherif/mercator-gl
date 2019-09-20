@@ -38,9 +38,10 @@ const TILE_SIZE = 512;
 const EARTH_CIRCUMFERENCE = 40.03e6;
 
 const PROJECTION_GLSL = `
-const float PICO_MERCATOR_TILE_SIZE = 512.0;
-const float PICO_MERCATOR_PI = 3.1415926536;
-const float PICO_MERCATOR_WORLD_SCALE = PICO_MERCATOR_TILE_SIZE / (PICO_MERCATOR_PI * 2.0);
+#define PICO_MERCATOR_TILE_SIZE 512.0
+#define PICO_MERCATOR_PI 3.1415926536
+#define PICO_MERCATOR_WORLD_SCALE (PICO_MERCATOR_TILE_SIZE / (PICO_MERCATOR_PI * 2.0))
+#define PICO_MERCATOR_OFFSET_THRESHOLD 4096.0
 
 uniform vec2 pico_mercator_lngLatCenter;
 uniform vec3 pico_mercator_angleDerivatives;
@@ -51,7 +52,7 @@ uniform mat4 pico_mercator_viewProjectionMatrix;
 
 vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation, vec2 lngLatPrecision) {
     vec3 mercatorPosition;
-    if (pico_mercator_scale < 2048.0) {
+    if (pico_mercator_scale < PICO_MERCATOR_OFFSET_THRESHOLD) {
         mercatorPosition.xy = vec2(
             (radians(lngLatElevation.x) + PICO_MERCATOR_PI) * PICO_MERCATOR_WORLD_SCALE,
             (PICO_MERCATOR_PI + log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLatElevation.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
@@ -83,11 +84,11 @@ vec4 pico_mercator_lngLatToWorld(vec2 lngLat) {
 }
 
 vec4 pico_mercator_worldToClip(vec4 worldPosition) {
-    if (pico_mercator_scale >= 2048.0) {
+    if (pico_mercator_scale >= PICO_MERCATOR_OFFSET_THRESHOLD) {
         worldPosition.w = 0.0;
     }
     vec4 clipPosition = pico_mercator_viewProjectionMatrix * worldPosition;
-    if (pico_mercator_scale >= 2048.0) {
+    if (pico_mercator_scale >= PICO_MERCATOR_OFFSET_THRESHOLD) {
         clipPosition += pico_mercator_clipCenter;
     }
 
