@@ -95,12 +95,12 @@ vec4 pico_mercator_worldToClip(vec4 worldPosition) {
     return clipPosition;
 }
 
-vec4 pico_mercator_lngLatToClip(vec3 lngLat, vec2 lngLatPrecision) {
-    return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLat, lngLatPrecision));
+vec4 pico_mercator_lngLatToClip(vec3 lngLatElevation, vec2 lngLatPrecision) {
+    return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLatElevation, lngLatPrecision));
 }
 
-vec4 pico_mercator_lngLatToClip(vec3 lngLat) {
-    return pico_mercator_lngLatToClip(lngLat, vec2(0.0));
+vec4 pico_mercator_lngLatToClip(vec3 lngLatElevation) {
+    return pico_mercator_lngLatToClip(lngLatElevation, vec2(0.0));
 }
 
 vec4 pico_mercator_lngLatToClip(vec2 lngLat, vec2 lngLatPrecision) {
