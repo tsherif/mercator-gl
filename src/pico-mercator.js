@@ -120,15 +120,6 @@ let tempViewMatrix = new Float64Array(16);
 let tempProjectionMatrix = new Float64Array(16);
 
 // Low-precision for uniforms and to avoid instability
-let uniforms = {
-    pico_mercator_lngLatCenter: new Float32Array(2),
-    pico_mercator_angleDerivatives: new Float32Array(3),
-    pico_mercator_meterDerivatives: new Float32Array(2),
-    pico_mercator_clipCenter: new Float32Array(4),
-    pico_mercator_viewProjectionMatrix: new Float32Array(16),
-    pico_mercator_scale: 0
-};
-
 let lngLat32 = new Float32Array(2);
 
 export function pico_mercator_highPrecisionMat4() {
@@ -156,8 +147,18 @@ export function pico_mercator_injectGLSLProjection(vsSource) {
     return vsSource.replace(versionLine, versionLine + PROJECTION_GLSL);
 }
 
+export function pico_mercator_allocateUniforms(uniforms = {}) {
+    uniforms.pico_mercator_lngLatCenter = new Float32Array(2);
+    uniforms.pico_mercator_angleDerivatives = new Float32Array(3);
+    uniforms.pico_mercator_meterDerivatives = new Float32Array(2);
+    uniforms.pico_mercator_clipCenter = new Float32Array(4);
+    uniforms.pico_mercator_viewProjectionMatrix = new Float32Array(16);
+    uniforms.pico_mercator_scale = 0;
 
-export function pico_mercator_uniforms(lngLat, zoom, viewProjectionMatrix, fn) {
+    return uniforms;
+}
+
+export function pico_mercator_updateUniforms(uniforms, lngLat, zoom, viewProjectionMatrix) {
     let longitude = lngLat[0];
     let latitude = lngLat[1];
 
@@ -176,8 +177,8 @@ export function pico_mercator_uniforms(lngLat, zoom, viewProjectionMatrix, fn) {
     pico_mercator_lngLatToClip(uniforms.pico_mercator_clipCenter, lngLat32, zoom, viewProjectionMatrix);
 
     uniforms.pico_mercator_viewProjectionMatrix.set(viewProjectionMatrix);
-
-    fn(uniforms);
+ 
+    return uniforms;
 }
 
 export function pico_mercator_mapboxViewMatrix(out, lngLat, zoom, pitch, bearing, canvasHeight) {

@@ -100,7 +100,8 @@
             pico_mercator_highPrecisionLngLat,
             pico_mercator_mapboxViewProjectionMatrix,
             pico_mercator_pixelsPerMeter,
-            pico_mercator_uniforms
+            pico_mercator_allocateUniforms,
+            pico_mercator_updateUniforms
         } = PicoMercator;
 
         const INITIAL_ZOOM = 11.5;
@@ -187,6 +188,8 @@
             let drawCall = app.createDrawCall(program, vertexArray)
             .primitive(PicoGL.TRIANGLE_STRIP);
 
+            let uniforms = pico_mercator_allocateUniforms();
+
             map.on("render", (e) => {
                 if (timer.ready()) {
                     utils.updateTimerElement(timer.cpuTime, timer.gpuTime);
@@ -204,11 +207,11 @@
                 .uniform("radiusScale", 30)
                 .uniform("radiusLimits", radiusLimits);
 
-                pico_mercator_uniforms(center, zoom, viewProjMat, (uniforms) => {
-                    for (let name in uniforms) {
-                        drawCall.uniform(name, uniforms[name]);
-                    }
-                });
+                pico_mercator_updateUniforms(uniforms, center, zoom, viewProjMat);
+
+                for (let name in uniforms) {
+                    drawCall.uniform(name, uniforms[name]);
+                }
 
                 // DRAW
                 app.clear();
