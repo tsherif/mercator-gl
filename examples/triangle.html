@@ -66,10 +66,13 @@
         precision highp float;
         
         in vec3 vColor;
-        
+
+        uniform float alpha;
+
         out vec4 fragColor;
         void main() {
-            fragColor = vec4(vColor, 1.0);
+            fragColor = vec4(vColor, alpha);
+            fragColor.rgb *= fragColor.a;
         }
     </script>
     <script type="module">
@@ -78,7 +81,8 @@
             pico_mercator_injectGLSLProjection,
             pico_mercator_highPrecisionMat4,
             pico_mercator_mapboxViewProjectionMatrix,
-            pico_mercator_uniforms,
+            pico_mercator_allocateUniforms,
+            pico_mercator_updateUniforms,
             mat4
         } = PicoMercator;
 
@@ -108,6 +112,8 @@
         });
         
         let app = PicoGL.createApp(canvas, { alpha: true })
+        .blend()
+        .blendFunc(PicoGL.ONE, PicoGL.ONE_MINUE_SRC_ALPHA)
         .clearColor(0.0, 0.0, 0.0, 0.0);
 
         window.onresize = function() {
@@ -141,6 +147,11 @@
 
         let viewProjMat = pico_mercator_highPrecisionMat4();
 
+        let uniforms = {
+            alpha: 0.5
+        };
+        pico_mercator_allocateUniforms(uniforms);
+
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, triangleArray);
@@ -153,11 +164,11 @@
 
                 pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
 
-                pico_mercator_uniforms(center, zoom, viewProjMat, (uniforms) => {
-                    for (let name in uniforms) {
-                        drawCall.uniform(name, uniforms[name]);
-                    }
-                });
+                pico_mercator_updateUniforms(uniforms, center, zoom, viewProjMat);
+
+                for (let name in uniforms) {
+                    drawCall.uniform(name, uniforms[name]);
+                }
 
                 // DRAW
                 app.clear();
