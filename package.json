@@ -13,10 +13,10 @@
     "url": "http://tareksherif.net/"
   },
   "scripts": {
-    "clean": "rimraf **/npm-debug.log build/pico-mercator.min.js.LICENSE",
     "lint": "eslint src/*.js",
-    "compile": "webpack && npm run clean",
+    "compile": "webpack --config webpack.prod.js",
     "build": "npm run test && npm run compile",
+    "watch": "webpack --watch --config webpack.dev.js",
     "test": "npm run lint"
   },
   "keywords": [
@@ -36,8 +36,8 @@
   },
   "devDependencies": {
     "eslint": "^6.3.0",
-    "rimraf": "^3.0.0",
     "webpack": "^4.39.3",
-    "webpack-cli": "^3.3.8"
+    "webpack-cli": "^3.3.8",
+    "webpack-merge": "^4.2.2"
   }
 }
