@@ -60,9 +60,10 @@
         layout(location=0) in vec4 positions;
         layout(location=1) in vec2 startPrecisionBits;
         layout(location=2) in vec2 endPrecisionBits;
-        layout(location=3) in float shapePosition;
 
-        out float vShapePosition;
+        uniform float uNumSegments;
+
+        out float vFactor;
 
         void main() {
             vec2 startPosition = positions.xy;
@@ -70,9 +71,10 @@
 
             vec4 worldStart = pico_mercator_lngLatToWorld(startPosition, startPrecisionBits);
             vec4 worldEnd = pico_mercator_lngLatToWorld(endPosition, endPrecisionBits);
+            float factor = float(gl_VertexID) / (uNumSegments - 1.0);
 
-            vec4 position = mix(worldStart, worldEnd, shapePosition);
-            vShapePosition = shapePosition;
+            vec4 position = mix(worldStart, worldEnd, factor);
+            vFactor = factor;
 
             gl_Position = pico_mercator_worldToClip(position);
         }
@@ -81,14 +83,15 @@
         #version 300 es
         precision highp float;
     
-        in float vShapePosition;
+        in float vFactor;
 
         out vec4 fragColor;
         void main() {
-            fragColor = mix(vec4(0.25, 1.0, 0.0, 1.0), vec4(0.0, 0.5, 0.78, 1.0), vShapePosition);
+            fragColor = mix(vec4(0.25, 1.0, 0.0, 1.0), vec4(0.0, 0.5, 0.78, 1.0), vFactor);
         }
     </script>
     <script>
+        const NUM_SEGMENTS = 50;
 
         const {
             pico_mercator_injectGLSLProjection,
@@ -161,31 +164,23 @@
             let startPrecisionData = pico_mercator_highPrecisionLngLat(positionData, 0, 4);
             let endPrecisionData = pico_mercator_highPrecisionLngLat(positionData, 2, 4);
 
-            let numSegments = 50;
-            let shapePositionData = new Float32Array(numSegments + 1);
-
-            for (let i = 0; i <= numSegments; ++i) {
-                shapePositionData[i] = i / numSegments;
-            }
-
-
             let positions = app.createVertexBuffer(PicoGL.FLOAT, 4, positionData);
             let startPrecision = app.createVertexBuffer(PicoGL.FLOAT, 2, startPrecisionData);
             let endPrecision = app.createVertexBuffer(PicoGL.FLOAT, 2, endPrecisionData);
-            let shapePosition = app.createVertexBuffer(PicoGL.FLOAT, 1, shapePositionData);
 
             // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
             let vertexArray = app.createVertexArray()
             .instanceAttributeBuffer(0, positions)
             .instanceAttributeBuffer(1, startPrecision)
-            .instanceAttributeBuffer(2, endPrecision)
-            .vertexAttributeBuffer(3, shapePosition);
+            .instanceAttributeBuffer(2, endPrecision);
   
             let viewProjMat = pico_mercator_highPrecisionMat4();
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
-            .primitive(PicoGL.LINE_STRIP);
+            .primitive(PicoGL.LINE_STRIP)
+            .uniform("uNumSegments", NUM_SEGMENTS)
+            .drawRanges([0, NUM_SEGMENTS, data.length]);
 
             let uniforms = pico_mercator_allocateUniforms();
 
@@ -206,7 +201,6 @@
                 for (let name in uniforms) {
                     drawCall.uniform(name, uniforms[name]);
                 }
-
 
                 // DRAW
                 app.clear();

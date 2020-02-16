@@ -127,7 +127,7 @@ export function pico_mercator_highPrecisionMat4() {
 }
 
 export function pico_mercator_highPrecisionLngLat(lngLat, offset = 0, stride = 2) {
-    let numElements = (lngLat.length - offset) / stride;
+    let numElements = Math.ceil((lngLat.length - offset) / stride);
     let precisionData = new Float32Array(numElements * 2);
     for (let i = 0; i < numElements; ++i) {
         let lli = offset + i * stride;
