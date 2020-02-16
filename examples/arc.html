@@ -56,7 +56,7 @@
     <canvas id="gl-canvas"></canvas>
     <script type="shader/vs" id="vs">
         #version 300 es
-        #define HEIGHT 1000.0
+        #define HEIGHT 2000.0
 
         layout(location=0) in vec4 positions;
         layout(location=1) in vec2 startPrecisionBits;
@@ -112,6 +112,8 @@
 
         const INITIAL_ZOOM = 11.5;
         const INITIAL_CENTER = [-122.427, 37.752];
+        const INITIAL_PITCH = 50;
+        const INITIAL_BEARING = 0;
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
@@ -128,6 +130,8 @@
             style: "mapbox://styles/mapbox/streets-v9",
             center: INITIAL_CENTER,
             zoom: INITIAL_ZOOM,
+            pitch: INITIAL_PITCH,
+            bearing: INITIAL_BEARING,
             maxZoom: 20
         });
         
