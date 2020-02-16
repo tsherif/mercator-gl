@@ -56,6 +56,7 @@
     <canvas id="gl-canvas"></canvas>
     <script type="shader/vs" id="vs">
         #version 300 es
+        #define HEIGHT 100.0
 
         layout(location=0) in vec4 positions;
         layout(location=1) in vec2 startPrecisionBits;
@@ -75,6 +76,10 @@
 
             vec4 position = mix(worldStart, worldEnd, factor);
             vFactor = factor;
+
+            float offsetFactor = factor - 0.5;
+            float heightFactor = -4.0 * offsetFactor * offsetFactor + 1.0;
+            position.z += heightFactor * HEIGHT;
 
             gl_Position = pico_mercator_worldToClip(position);
         }
