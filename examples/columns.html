@@ -100,13 +100,13 @@
     <script>
 
         const {
-            injectProjectionGLSL,
+            injectMercatorGLSL,
             highPrecisionMat4,
             highPrecisionLngLat,
             mapboxViewProjectionMatrix,
             pixelsPerMeter,
-            allocateProjectionUniforms,
-            updateProjectionUniforms
+            allocateMercatorUniforms,
+            updateMercatorUniforms
         } = PicoMercator;
 
         const INITIAL_ZOOM = 11.8;
@@ -150,7 +150,7 @@
         utils.addTimerElement();
 
         // PROGRAM 
-        let vsSource =  injectProjectionGLSL(document.getElementById("vs").text.trim());
+        let vsSource =  injectMercatorGLSL(document.getElementById("vs").text.trim());
         let fsSource =  document.getElementById("fs").text.trim();
 
         Promise.all([
@@ -201,7 +201,7 @@
             let drawCall = app.createDrawCall(program, vertexArray)
             .primitive(PicoGL.TRIANGLE_STRIP);
 
-            let uniforms = allocateProjectionUniforms();
+            let uniforms = allocateMercatorUniforms();
 
             map.on("render", (e) => {
                 if (timer.ready()) {
@@ -218,7 +218,7 @@
 
                 drawCall.uniform("pixelsPerMeter", pixelsPerMeter(center[1], zoom));
 
-                updateProjectionUniforms(uniforms, center, zoom, viewProjMat);
+                updateMercatorUniforms(uniforms, center, zoom, viewProjMat);
 
                 for (let name in uniforms) {
                     drawCall.uniform(name, uniforms[name]);

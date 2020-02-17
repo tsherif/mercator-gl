@@ -78,11 +78,11 @@
     <script type="module">
 
         const {
-            injectProjectionGLSL,
+            injectMercatorGLSL,
             highPrecisionMat4,
             mapboxViewProjectionMatrix,
-            allocateProjectionUniforms,
-            updateProjectionUniforms
+            allocateMercatorUniforms,
+            updateMercatorUniforms
         } = PicoMercator;
 
         const INITIAL_ZOOM = 14;
@@ -123,7 +123,7 @@
         }
 
         // PROGRAM 
-        let vsSource = injectProjectionGLSL(document.getElementById("vs").text.trim());
+        let vsSource = injectMercatorGLSL(document.getElementById("vs").text.trim());
         let fsSource = document.getElementById("fs").text.trim();
 
         // GEOMETRY IN VERTEX BUFFERS
@@ -149,7 +149,7 @@
         let uniforms = {
             alpha: 0.5
         };
-        allocateProjectionUniforms(uniforms);
+        allocateMercatorUniforms(uniforms);
 
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
@@ -163,7 +163,7 @@
 
                 mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
 
-                updateProjectionUniforms(uniforms, center, zoom, viewProjMat);
+                updateMercatorUniforms(uniforms, center, zoom, viewProjMat);
 
                 for (let name in uniforms) {
                     drawCall.uniform(name, uniforms[name]);

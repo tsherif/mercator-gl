@@ -138,14 +138,14 @@ export function highPrecisionLngLat(lngLat, offset = 0, stride = 2) {
     return precisionData;
 }
 
-export function injectProjectionGLSL(vsSource) {
+export function injectMercatorGLSL(vsSource) {
     let versionMatch = vsSource.match(/#version \d+(\s+es)?\s*\n/);
     let versionLine = versionMatch ? versionMatch[0] : "";
 
     return vsSource.replace(versionLine, versionLine + PROJECTION_GLSL);
 }
 
-export function allocateProjectionUniforms(uniforms = {}) {
+export function allocateMercatorUniforms(uniforms = {}) {
     uniforms.pico_mercator_lngLatCenter = new Float32Array(2);
     uniforms.pico_mercator_angleDerivatives = new Float32Array(3);
     uniforms.pico_mercator_meterDerivatives = new Float32Array(2);
@@ -156,7 +156,7 @@ export function allocateProjectionUniforms(uniforms = {}) {
     return uniforms;
 }
 
-export function updateProjectionUniforms(uniforms, lngLat, zoom, viewProjectionMatrix) {
+export function updateMercatorUniforms(uniforms, lngLat, zoom, viewProjectionMatrix) {
     let longitude = lngLat[0];
     let latitude = lngLat[1];
 
