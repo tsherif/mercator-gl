@@ -78,12 +78,11 @@
     <script type="module">
 
         const {
-            pico_mercator_injectGLSLProjection,
-            pico_mercator_highPrecisionMat4,
-            pico_mercator_mapboxViewProjectionMatrix,
-            pico_mercator_allocateUniforms,
-            pico_mercator_updateUniforms,
-            mat4
+            injectGLSLProjection,
+            highPrecisionMat4,
+            mapboxViewProjectionMatrix,
+            allocateProjectionUniforms,
+            updateProjectionUniforms
         } = PicoMercator;
 
         const INITIAL_ZOOM = 14;
@@ -124,8 +123,8 @@
         }
 
         // PROGRAM 
-        let vsSource =  pico_mercator_injectGLSLProjection(document.getElementById("vs").text.trim());
-        let fsSource =  document.getElementById("fs").text.trim();
+        let vsSource = injectGLSLProjection(document.getElementById("vs").text.trim());
+        let fsSource = document.getElementById("fs").text.trim();
 
         // GEOMETRY IN VERTEX BUFFERS
         let positions = app.createVertexBuffer(PicoGL.FLOAT, 2, new Float32Array([
@@ -145,12 +144,12 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
-        let viewProjMat = pico_mercator_highPrecisionMat4();
+        let viewProjMat = highPrecisionMat4();
 
         let uniforms = {
             alpha: 0.5
         };
-        pico_mercator_allocateUniforms(uniforms);
+        allocateProjectionUniforms(uniforms);
 
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
@@ -162,9 +161,9 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
+                mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
 
-                pico_mercator_updateUniforms(uniforms, center, zoom, viewProjMat);
+                updateProjectionUniforms(uniforms, center, zoom, viewProjMat);
 
                 for (let name in uniforms) {
                     drawCall.uniform(name, uniforms[name]);

@@ -94,19 +94,19 @@
 
         out vec4 fragColor;
         void main() {
-            fragColor = mix(vec4(0.25, 1.0, 0.0, 1.0), vec4(0.0, 0.5, 0.78, 1.0), vFactor);
+            fragColor = mix(vec4(1.0, 0.25, 0.5, 1.0), vec4(0.0, 0.5, 0.78, 1.0), vFactor);
         }
     </script>
     <script>
         const NUM_SEGMENTS = 50;
 
         const {
-            pico_mercator_injectGLSLProjection,
-            pico_mercator_highPrecisionMat4,
-            pico_mercator_highPrecisionLngLat,
-            pico_mercator_mapboxViewProjectionMatrix,
-            pico_mercator_allocateUniforms,
-            pico_mercator_updateUniforms
+            injectGLSLProjection,
+            highPrecisionMat4,
+            highPrecisionLngLat,
+            mapboxViewProjectionMatrix,
+            allocateProjectionUniforms,
+            updateProjectionUniforms
         } = PicoMercator;
 
         const INITIAL_ZOOM = 11.5;
@@ -150,8 +150,8 @@
         utils.addTimerElement();
 
         // PROGRAM 
-        let vsSource =  pico_mercator_injectGLSLProjection(document.getElementById("vs").text.trim());
-        let fsSource =  document.getElementById("fs").text.trim();
+        let vsSource = injectGLSLProjection(document.getElementById("vs").text.trim());
+        let fsSource = document.getElementById("fs").text.trim();
 
         Promise.all([
             app.createPrograms([vsSource, fsSource]),
@@ -171,8 +171,8 @@
                 positionData[pi + 3] = end[1];
             }
 
-            let startPrecisionData = pico_mercator_highPrecisionLngLat(positionData, 0, 4);
-            let endPrecisionData = pico_mercator_highPrecisionLngLat(positionData, 2, 4);
+            let startPrecisionData = highPrecisionLngLat(positionData, 0, 4);
+            let endPrecisionData = highPrecisionLngLat(positionData, 2, 4);
 
             let positions = app.createVertexBuffer(PicoGL.FLOAT, 4, positionData);
             let startPrecision = app.createVertexBuffer(PicoGL.FLOAT, 2, startPrecisionData);
@@ -184,7 +184,7 @@
             .instanceAttributeBuffer(1, startPrecision)
             .instanceAttributeBuffer(2, endPrecision);
   
-            let viewProjMat = pico_mercator_highPrecisionMat4();
+            let viewProjMat = highPrecisionMat4();
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
@@ -192,7 +192,7 @@
             .uniform("uNumSegments", NUM_SEGMENTS)
             .drawRanges([0, NUM_SEGMENTS, data.length]);
 
-            let uniforms = pico_mercator_allocateUniforms();
+            let uniforms = allocateProjectionUniforms();
 
             map.on("render", (e) => {
                 if (timer.ready()) {
@@ -205,8 +205,8 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
-                pico_mercator_updateUniforms(uniforms, center, zoom, viewProjMat);
+                mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
+                updateProjectionUniforms(uniforms, center, zoom, viewProjMat);
 
                 for (let name in uniforms) {
                     drawCall.uniform(name, uniforms[name]);

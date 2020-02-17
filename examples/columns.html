@@ -100,13 +100,13 @@
     <script>
 
         const {
-            pico_mercator_injectGLSLProjection,
-            pico_mercator_highPrecisionMat4,
-            pico_mercator_highPrecisionLngLat,
-            pico_mercator_mapboxViewProjectionMatrix,
-            pico_mercator_pixelsPerMeter,
-            pico_mercator_allocateUniforms,
-            pico_mercator_updateUniforms
+            injectGLSLProjection,
+            highPrecisionMat4,
+            highPrecisionLngLat,
+            mapboxViewProjectionMatrix,
+            pixelsPerMeter,
+            allocateProjectionUniforms,
+            updateProjectionUniforms
         } = PicoMercator;
 
         const INITIAL_ZOOM = 11.8;
@@ -150,7 +150,7 @@
         utils.addTimerElement();
 
         // PROGRAM 
-        let vsSource =  pico_mercator_injectGLSLProjection(document.getElementById("vs").text.trim());
+        let vsSource =  injectGLSLProjection(document.getElementById("vs").text.trim());
         let fsSource =  document.getElementById("fs").text.trim();
 
         Promise.all([
@@ -176,7 +176,7 @@
                 colorData[pi + 2] = 255 - data[i].value * 255;
             }
 
-            let precisionData = pico_mercator_highPrecisionLngLat(positionData, 3);
+            let precisionData = highPrecisionLngLat(positionData, 3);
 
             let positions = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData);
             let precision = app.createVertexBuffer(PicoGL.FLOAT, 2, precisionData);
@@ -195,13 +195,13 @@
             .vertexAttributeBuffer(3, colummPositions)
             .vertexAttributeBuffer(4, colummNormals);
   
-            let viewProjMat = pico_mercator_highPrecisionMat4();
+            let viewProjMat = highPrecisionMat4();
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
             .primitive(PicoGL.TRIANGLE_STRIP);
 
-            let uniforms = pico_mercator_allocateUniforms();
+            let uniforms = allocateProjectionUniforms();
 
             map.on("render", (e) => {
                 if (timer.ready()) {
@@ -214,11 +214,11 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                pico_mercator_mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
+                mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
 
-                drawCall.uniform("pixelsPerMeter", pico_mercator_pixelsPerMeter(center[1], zoom));
+                drawCall.uniform("pixelsPerMeter", pixelsPerMeter(center[1], zoom));
 
-                pico_mercator_updateUniforms(uniforms, center, zoom, viewProjMat);
+                updateProjectionUniforms(uniforms, center, zoom, viewProjMat);
 
                 for (let name in uniforms) {
                     drawCall.uniform(name, uniforms[name]);
