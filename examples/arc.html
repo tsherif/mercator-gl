@@ -61,14 +61,14 @@
         layout(location=0) in vec4 positions;
         layout(location=1) in vec2 startPrecisionBits;
         layout(location=2) in vec2 endPrecisionBits;
+        layout(location=3) in uint segmentIndex;
 
         uniform float uNumSegments;
 
         out float vFactor;
 
         void main() {
-            float factor = float(gl_VertexID) / (uNumSegments - 1.0);
-            
+            float factor = float(segmentIndex) / (uNumSegments - 1.0);
 
             vec2 startPosition = positions.xy;
             vec2 endPosition = positions.zw;
@@ -171,18 +171,27 @@
                 positionData[pi + 3] = end[1];
             }
 
+            // Annoying, but this seems to be required in FF
+            // (at least 1 non-instanced attribute).
+            let segmentIndexData = new Uint8Array(NUM_SEGMENTS);
+            for (let i = 0; i < NUM_SEGMENTS; ++i) {
+                segmentIndexData[i] = i;
+            }
+
             let startPrecisionData = highPrecisionLngLat(positionData, 0, 4);
             let endPrecisionData = highPrecisionLngLat(positionData, 2, 4);
 
             let positions = app.createVertexBuffer(PicoGL.FLOAT, 4, positionData);
             let startPrecision = app.createVertexBuffer(PicoGL.FLOAT, 2, startPrecisionData);
             let endPrecision = app.createVertexBuffer(PicoGL.FLOAT, 2, endPrecisionData);
+            let segmentIndex = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 1, segmentIndexData);
 
             // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
             let vertexArray = app.createVertexArray()
             .instanceAttributeBuffer(0, positions)
             .instanceAttributeBuffer(1, startPrecision)
-            .instanceAttributeBuffer(2, endPrecision);
+            .instanceAttributeBuffer(2, endPrecision)
+            .vertexAttributeBuffer(3, segmentIndex);
   
             let viewProjMat = highPrecisionMat4();
 
@@ -190,7 +199,7 @@
             let drawCall = app.createDrawCall(program, vertexArray)
             .primitive(PicoGL.LINE_STRIP)
             .uniform("uNumSegments", NUM_SEGMENTS)
-            .drawRanges([0, NUM_SEGMENTS, data.length]);
+            // .drawRanges([0, NUM_SEGMENTS, data.length]);
 
             let uniforms = allocateMercatorUniforms();
 
