@@ -3,7 +3,7 @@ PicoMercator
 
 PicoMercator is a minimal library for doing web mercator projections in WebGL in a manner compatible with [Mapbox GL](https://github.com/mapbox/mapbox-gl-js). It provides GLSL code for projecting longitude/latitude coordinates into 3D space, and JavaScript functions to create view and projection matrices to overlay them onto a map rendered by Mapbox GL. PicoMercator focuses on numerical stability by performing most calculations at 64-bit precision, and switching to an "offset mode" at higher zoom levels (using a technique borrowed from [deck.gl](https://medium.com/vis-gl/how-sometimes-assuming-the-earth-is-flat-helps-speed-up-rendering-in-deck-gl-c43b72fd6db4)).
 
-Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element, and updating to match the current map view. PicoMercator provides a function `injectGLSLProjection` to insert functions `pico_mercator_lngLatToWorld`, `pico_mercator_worldToClip`, and `pico_mercator_lngLatToClip` into vertex shader source code so the mercator projection can be done on the GPU. The JavaScript functions `allocateProjectionUniforms` and `updateProjectionUniforms` are provided to initialize and update the values of uniforms used by PicoMercator. The application can then use the values to set program uniforms in whatever way is most appropriate.
+Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element, and updating to match the current map view. PicoMercator provides a function `injectProjectionGLSL` to insert functions `pico_mercator_lngLatToWorld`, `pico_mercator_worldToClip`, and `pico_mercator_lngLatToClip` into vertex shader source code so the mercator projection can be done on the GPU. The JavaScript functions `allocateProjectionUniforms` and `updateProjectionUniforms` are provided to initialize and update the values of uniforms used by PicoMercator. The application can then use the values to set program uniforms in whatever way is most appropriate.
 
 ```JavaScript
 
@@ -18,7 +18,7 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
         #version 300 es
         layout(location=0) in vec2 lngLatPosition;
         void main() {
-            // pico_mercator_lngLatToClip function injected by injectGLSLProjection().
+            // pico_mercator_lngLatToClip function injected by injectProjectionGLSL().
             // pico_mercator_lngLatToWorld and pico_mercator_worldToClip also available to do
             // projection in multiple steps.
             gl_Position = pico_mercator_lngLatToClip(position);
@@ -37,7 +37,7 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
 
 
     // Insert projection functions into vertex shader
-    let vertexShaderSource = injectGLSLProjection(vs);
+    let vertexShaderSource = injectProjectionGLSL(vs);
     let fragmentShaderSource =  fs;
     // Create WebGL program from vertexShaderSource and fragmentShaderSource
 

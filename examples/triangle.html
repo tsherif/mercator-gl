@@ -78,7 +78,7 @@
     <script type="module">
 
         const {
-            injectGLSLProjection,
+            injectProjectionGLSL,
             highPrecisionMat4,
             mapboxViewProjectionMatrix,
             allocateProjectionUniforms,
@@ -123,7 +123,7 @@
         }
 
         // PROGRAM 
-        let vsSource = injectGLSLProjection(document.getElementById("vs").text.trim());
+        let vsSource = injectProjectionGLSL(document.getElementById("vs").text.trim());
         let fsSource = document.getElementById("fs").text.trim();
 
         // GEOMETRY IN VERTEX BUFFERS

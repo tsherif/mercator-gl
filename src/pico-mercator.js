@@ -138,7 +138,7 @@ export function highPrecisionLngLat(lngLat, offset = 0, stride = 2) {
     return precisionData;
 }
 
-export function injectGLSLProjection(vsSource) {
+export function injectProjectionGLSL(vsSource) {
     let versionMatch = vsSource.match(/#version \d+(\s+es)?\s*\n/);
     let versionLine = versionMatch ? versionMatch[0] : "";
 

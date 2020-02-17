@@ -100,7 +100,7 @@
     <script>
 
         const {
-            injectGLSLProjection,
+            injectProjectionGLSL,
             highPrecisionMat4,
             highPrecisionLngLat,
             mapboxViewProjectionMatrix,
@@ -150,7 +150,7 @@
         utils.addTimerElement();
 
         // PROGRAM 
-        let vsSource =  injectGLSLProjection(document.getElementById("vs").text.trim());
+        let vsSource =  injectProjectionGLSL(document.getElementById("vs").text.trim());
         let fsSource =  document.getElementById("fs").text.trim();
 
         Promise.all([
