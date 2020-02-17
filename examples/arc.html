@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PicoMercator Scatterplot</title>
+    <title>PicoMercator Arc</title>
     <meta charset="utf-8">
     <script src="../build/pico-mercator.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
@@ -48,7 +48,7 @@
   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 <!-- 
-    Port of ScatterPlotLayer example from deck.gl
+    Port of ArcLayer example from deck.gl
     https://github.com/uber/deck.gl/tree/master/examples/layer-browser
  -->
 <body>
@@ -56,56 +56,63 @@
     <canvas id="gl-canvas"></canvas>
     <script type="shader/vs" id="vs">
         #version 300 es
+        #define HEIGHT 10.0
 
-        layout(location=0) in vec2 positions;
-        layout(location=1) in vec2 precisionBits;
-        layout(location=2) in float radius;
-        layout(location=3) in vec3 shapePosition;
+        layout(location=0) in vec4 positions;
+        layout(location=1) in vec2 startPrecisionBits;
+        layout(location=2) in vec2 endPrecisionBits;
+        layout(location=3) in uint segmentIndex;
 
-        uniform float pixelsPerMeter;
-        uniform float radiusScale;
-        uniform vec2 radiusLimits;
+        uniform float uNumSegments;
 
-        out vec3 vShapePosition;
+        out float vFactor;
 
         void main() {
-            vShapePosition = shapePosition;
-            vec4 worldPosition = pico_mercator_lngLatToWorld(positions, precisionBits);
-            float r = clamp(radius * pixelsPerMeter * radiusScale, radiusLimits.x, radiusLimits.y);
-            vec3 offset = shapePosition * r;
-            worldPosition.xyz += offset;
-            gl_Position = pico_mercator_worldToClip(worldPosition);
+            float factor = float(segmentIndex) / (uNumSegments - 1.0);
+
+            vec2 startPosition = positions.xy;
+            vec2 endPosition = positions.zw;
+
+            vec4 worldStart = pico_mercator_lngLatToWorld(startPosition, startPrecisionBits);
+            vec4 worldEnd = pico_mercator_lngLatToWorld(endPosition, endPrecisionBits);
+
+            vec4 position = mix(worldStart, worldEnd, factor);
+            vFactor = factor;
+
+            float offsetFactor = factor - 0.5;
+            float heightFactor = -4.0 * offsetFactor * offsetFactor + 1.0;
+            position.z += heightFactor * HEIGHT * distance(worldStart.xy, worldEnd.xy) * pico_mercator_meterDerivatives.x;
+
+            gl_Position = pico_mercator_worldToClip(position);
         }
     </script>
     <script type="shader/fs" id="fs">
         #version 300 es
         precision highp float;
-                
-        in vec3 vShapePosition;
+    
+        in float vFactor;
 
         out vec4 fragColor;
         void main() {
-            if (dot(vShapePosition, vShapePosition) > 1.0) {
-                discard;
-            }
-
-            fragColor = vec4(1.0, 0.5, 0.0, 1.0);
+            fragColor = mix(vec4(1.0, 0.25, 0.5, 1.0), vec4(0.0, 0.5, 0.78, 1.0), vFactor);
         }
     </script>
     <script>
+        const NUM_SEGMENTS = 50;
 
         const {
             injectMercatorGLSL,
             highPrecisionMat4,
             highPrecisionLngLat,
             mapboxViewProjectionMatrix,
-            pixelsPerMeter,
             allocateMercatorUniforms,
             updateMercatorUniforms
         } = PicoMercator;
 
         const INITIAL_ZOOM = 11.5;
         const INITIAL_CENTER = [-122.427, 37.752];
+        const INITIAL_PITCH = 50;
+        const INITIAL_BEARING = 0;
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
@@ -122,6 +129,8 @@
             style: "mapbox://styles/mapbox/streets-v9",
             center: INITIAL_CENTER,
             zoom: INITIAL_ZOOM,
+            pitch: INITIAL_PITCH,
+            bearing: INITIAL_BEARING,
             maxZoom: 20
         });
         
@@ -146,47 +155,51 @@
 
         Promise.all([
             app.createPrograms([vsSource, fsSource]),
-            fetch('./data/sf.bike.parking.json').then(response => response.json())
+            fetch('./data/sfmta.routes.json').then(response => response.json())
         ]).then(([[program], data]) => {
 
-            let positionData = new Float32Array(data.length * 2);
-            let radiusData = new Float32Array(data.length);
+            let positionData = new Float32Array(data.length * 4);
 
             for (let i = 0; i < data.length; ++i) {
-                let pi = i * 2;
-                let coords = data[i].COORDINATES;
+                let pi = i * 4;
+                let start = data[i].START;
+                let end = data[i].END;
 
-                positionData[pi]     = coords[0];
-                positionData[pi + 1] = coords[1];
-                radiusData[i] = data[i].SPACES;
+                positionData[pi]     = start[0];
+                positionData[pi + 1] = start[1];
+                positionData[pi + 2] = end[0];
+                positionData[pi + 3] = end[1];
             }
 
-            let precisionData = highPrecisionLngLat(positionData);
+            // Annoying, but this seems to be required in FF
+            // (at least 1 non-instanced attribute).
+            let segmentIndexData = new Uint8Array(NUM_SEGMENTS);
+            for (let i = 0; i < NUM_SEGMENTS; ++i) {
+                segmentIndexData[i] = i;
+            }
 
-            let positions = app.createVertexBuffer(PicoGL.FLOAT, 2, positionData);
-            let precision = app.createVertexBuffer(PicoGL.FLOAT, 2, precisionData);
-            let radius = app.createVertexBuffer(PicoGL.FLOAT, 1, radiusData);
-            let shapePositions = app.createVertexBuffer(PicoGL.FLOAT, 2, new Float32Array([
-                -1, 1,
-                -1, -1,
-                1, 1, 
-                1, -1 
-            ]));
-          
+            let startPrecisionData = highPrecisionLngLat(positionData, 0, 4);
+            let endPrecisionData = highPrecisionLngLat(positionData, 2, 4);
+
+            let positions = app.createVertexBuffer(PicoGL.FLOAT, 4, positionData);
+            let startPrecision = app.createVertexBuffer(PicoGL.FLOAT, 2, startPrecisionData);
+            let endPrecision = app.createVertexBuffer(PicoGL.FLOAT, 2, endPrecisionData);
+            let segmentIndex = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 1, segmentIndexData);
 
             // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
             let vertexArray = app.createVertexArray()
             .instanceAttributeBuffer(0, positions)
-            .instanceAttributeBuffer(1, precision)
-            .instanceAttributeBuffer(2, radius)
-            .vertexAttributeBuffer(3, shapePositions);
+            .instanceAttributeBuffer(1, startPrecision)
+            .instanceAttributeBuffer(2, endPrecision)
+            .vertexAttributeBuffer(3, segmentIndex);
   
             let viewProjMat = highPrecisionMat4();
-            let radiusLimits = new Float32Array([1, 30]);
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
-            .primitive(PicoGL.TRIANGLE_STRIP);
+            .primitive(PicoGL.LINE_STRIP)
+            .uniform("uNumSegments", NUM_SEGMENTS)
+            // .drawRanges([0, NUM_SEGMENTS, data.length]);
 
             let uniforms = allocateMercatorUniforms();
 
@@ -202,11 +215,6 @@
                 let bearing = map.getBearing();
 
                 mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
-
-                drawCall.uniform("pixelsPerMeter", pixelsPerMeter(center[1], zoom))
-                .uniform("radiusScale", 30)
-                .uniform("radiusLimits", radiusLimits);
-
                 updateMercatorUniforms(uniforms, center, zoom, viewProjMat);
 
                 for (let name in uniforms) {
