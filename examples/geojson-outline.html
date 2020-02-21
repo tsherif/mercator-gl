@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PicoMercator Arc</title>
+    <meta charset="utf-8">
+    <script src="../build/pico-mercator.min.js"></script>
+    <script src="./lib/picogl.min.js"></script>
+    <script src="./lib/mapbox-gl.js"></script>
+    <script src="./lib/utils.js"></script>
+    <link href="./lib/mapbox-gl.css" rel="stylesheet" />
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow-y: hidden;
+        }
+
+        #mapbox {
+            position: absolute;
+        }
+
+        #gl-canvas {
+            position: absolute;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<!--
+  The MIT License (MIT)
+
+  Copyright (c) 2017 Tarek Sherif
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  this software and associated documentation files (the "Software"), to deal in
+  the Software without restriction, including without limitation the rights to
+  use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of
+  the Software, and to permit persons to whom the Software is furnished to do so,
+  subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS
+  FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR
+  COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER
+  IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
+  CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+-->
+<!-- 
+    Port of ArcLayer example from deck.gl
+    https://github.com/uber/deck.gl/tree/master/examples/layer-browser
+ -->
+<body>
+    <div id="mapbox"></div>
+    <canvas id="gl-canvas"></canvas>
+    <script type="shader/vs" id="vs">
+        #version 300 es
+        #define HEIGHT 10.0
+
+        layout(location=0) in vec2 positions;
+        layout(location=1) in vec2 precisionBits;
+
+        void main() {
+            gl_Position = pico_mercator_lngLatToClip(positions, precisionBits);
+        }
+    </script>
+    <script type="shader/fs" id="fs">
+        #version 300 es
+        precision highp float;
+    
+        out vec4 fragColor;
+        void main() {
+            fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        }
+    </script>
+    <script>
+
+        const {
+            injectMercatorGLSL,
+            highPrecisionMat4,
+            highPrecisionLngLat,
+            mapboxViewProjectionMatrix,
+            allocateMercatorUniforms,
+            updateMercatorUniforms
+        } = PicoMercator;
+
+        const INITIAL_ZOOM = 11.5;
+        const INITIAL_CENTER = [-122.427, 37.752];
+        const INITIAL_PITCH = 50;
+        const INITIAL_BEARING = 0;
+
+        let mapboxContainer = document.getElementById("mapbox");
+        let canvas = document.getElementById("gl-canvas");
+        
+        mapboxContainer.style.width = `${window.innerWidth}px`;
+        mapboxContainer.style.height = `${window.innerHeight}px`;
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        mapboxgl.accessToken = 'pk.eyJ1IjoidHNoZXJpZiIsImEiOiJjanJ1dm1iNjYwZXM2M3lta2FjZ3dqa3JpIn0.js3Fu08SNC8Ca4VEWeiZ5A';
+        let map = new mapboxgl.Map({
+            container: mapboxContainer,
+            style: "mapbox://styles/mapbox/streets-v9",
+            center: INITIAL_CENTER,
+            zoom: INITIAL_ZOOM,
+            pitch: INITIAL_PITCH,
+            bearing: INITIAL_BEARING,
+            maxZoom: 20
+        });
+        
+        let app = PicoGL.createApp(canvas, { alpha: true })
+        .clearColor(0.0, 0.0, 0.0, 0.0)
+        .depthTest();
+
+        let timer = app.createTimer();
+
+        window.onresize = function() {
+            app.resize(window.innerWidth, window.innerHeight);
+            mapboxContainer.style.width = `${app.width}px`;
+            mapboxContainer.style.height = `${app.height}px`;
+            map.resize();
+        }
+
+        utils.addTimerElement();
+
+        // PROGRAM 
+        let vsSource = injectMercatorGLSL(document.getElementById("vs").text.trim());
+        let fsSource = document.getElementById("fs").text.trim();
+
+        Promise.all([
+            app.createPrograms([vsSource, fsSource]),
+            fetch('./data/sf.zip.geo.json').then(response => response.json())
+        ]).then(([[program], data]) => {
+
+            data = data.features;
+
+            let numFeatures = data.length;
+            // numFeatures = 1;
+            let drawCalls = new Array(numFeatures);
+            let viewProjMat = highPrecisionMat4();
+
+            for (let f = 0; f < numFeatures; ++f) {
+                let coordinates = data[f].geometry.coordinates[0];
+                let positionData = new Float32Array(coordinates.length * 2);
+
+                for (let i = 0; i < coordinates.length; ++i) {
+                    let pi = i * 2;
+                    let position = coordinates[i];
+
+                    positionData[pi]     = position[0];
+                    positionData[pi + 1] = position[1];
+                }
+
+                let precisionData = highPrecisionLngLat(positionData);
+
+                let positions = app.createVertexBuffer(PicoGL.FLOAT, 2, positionData);
+                let precision = app.createVertexBuffer(PicoGL.FLOAT, 2, precisionData);
+
+                // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
+                let vertexArray = app.createVertexArray()
+                .vertexAttributeBuffer(0, positions)
+                .vertexAttributeBuffer(1, precision);
+                
+                // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
+                drawCalls[f] = {
+                    drawCall: app.createDrawCall(program, vertexArray)
+                        .primitive(PicoGL.LINE_STRIP),
+                    uniforms: allocateMercatorUniforms()
+                };
+            }
+
+            map.on("render", (e) => {
+                if (timer.ready()) {
+                    utils.updateTimerElement(timer.cpuTime, timer.gpuTime);
+                }
+                timer.start();
+
+                let center = map.getCenter().toArray();
+                let zoom = map.getZoom();
+                let pitch = map.getPitch();
+                let bearing = map.getBearing();
+
+                mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
+
+                app.clear();
+                
+                for (let f = 0; f < numFeatures; ++f) {
+                    let feature = drawCalls[f];
+
+                    updateMercatorUniforms(feature.uniforms, center, zoom, viewProjMat);
+
+                    for (let name in feature.uniforms) {
+                        feature.drawCall.uniform(name, feature.uniforms[name]);
+                    }
+
+                    // DRAW
+                    feature.drawCall.draw();
+                }
+
+                timer.end();
+            });
+        });
+
+        
+
+
+    </script>
+</body>
+</html>
