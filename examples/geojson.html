@@ -1,11 +1,12 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PicoMercator Arc</title>
+    <title>PicoMercator GeoJSON</title>
     <meta charset="utf-8">
     <script src="../build/pico-mercator.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
+    <script src="./lib/earcut.min.js"></script>
     <script src="./lib/utils.js"></script>
     <link href="./lib/mapbox-gl.css" rel="stylesheet" />
     <style>
@@ -48,7 +49,7 @@
   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
 <!-- 
-    Port of ArcLayer example from deck.gl
+    Port of GeoJSON example from deck.gl
     https://github.com/uber/deck.gl/tree/master/examples/layer-browser
  -->
 <body>
@@ -69,9 +70,12 @@
         #version 300 es
         precision highp float;
     
+        uniform vec4 uColor;
+
         out vec4 fragColor;
         void main() {
-            fragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            fragColor = uColor;
+            fragColor.rgb *= fragColor.a;
         }
     </script>
     <script>
@@ -85,7 +89,7 @@
             updateMercatorUniforms
         } = PicoMercator;
 
-        const INITIAL_ZOOM = 11.5;
+        const INITIAL_ZOOM = 12;
         const INITIAL_CENTER = [-122.427, 37.752];
         const INITIAL_PITCH = 50;
         const INITIAL_BEARING = 0;
@@ -138,36 +142,44 @@
 
             let numFeatures = data.length;
             // numFeatures = 1;
-            let drawCalls = new Array(numFeatures);
+            let fillDrawCalls = new Array(numFeatures);
+            let outlineDrawCalls = new Array(numFeatures);
             let viewProjMat = highPrecisionMat4();
 
             for (let f = 0; f < numFeatures; ++f) {
-                let coordinates = data[f].geometry.coordinates[0];
-                let positionData = new Float32Array(coordinates.length * 2);
-
-                for (let i = 0; i < coordinates.length; ++i) {
-                    let pi = i * 2;
-                    let position = coordinates[i];
-
-                    positionData[pi]     = position[0];
-                    positionData[pi + 1] = position[1];
-                }
+                let coordinates = earcut.flatten(data[f].geometry.coordinates);
+                
+                let positionData = new Float32Array(coordinates.vertices);
+                let indexData = new Uint16Array(earcut(coordinates.vertices))
 
                 let precisionData = highPrecisionLngLat(positionData);
 
                 let positions = app.createVertexBuffer(PicoGL.FLOAT, 2, positionData);
                 let precision = app.createVertexBuffer(PicoGL.FLOAT, 2, precisionData);
+                let indices = app.createIndexBuffer(PicoGL.UNSIGNED_SHORT, 3, indexData);
 
                 // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
-                let vertexArray = app.createVertexArray()
+                let fillVertexArray = app.createVertexArray()
+                .vertexAttributeBuffer(0, positions)
+                .vertexAttributeBuffer(1, precision)
+                .indexBuffer(indices);
+                
+                // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
+                fillDrawCalls[f] = {
+                    drawCall: app.createDrawCall(program, fillVertexArray),
+                    uniforms: allocateMercatorUniforms({uColor: new Float32Array([1, 0, 0, 0.3])})
+                };
+
+                // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
+                let outlineVertexArray = app.createVertexArray()
                 .vertexAttributeBuffer(0, positions)
                 .vertexAttributeBuffer(1, precision);
                 
                 // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
-                drawCalls[f] = {
-                    drawCall: app.createDrawCall(program, vertexArray)
-                        .primitive(PicoGL.LINE_STRIP),
-                    uniforms: allocateMercatorUniforms()
+                outlineDrawCalls[f] = {
+                    drawCall: app.createDrawCall(program, outlineVertexArray)
+                    .primitive(PicoGL.LINE_STRIP),
+                    uniforms: allocateMercatorUniforms({uColor: new Float32Array([0, 0, 1, 1])})
                 };
             }
 
@@ -186,17 +198,35 @@
 
                 app.clear();
                 
+                app.blend()
+                .blendFunc(PicoGL.ONE, PicoGL.ONE_MINUS_SRC_ALPHA);
+
                 for (let f = 0; f < numFeatures; ++f) {
-                    let feature = drawCalls[f];
+                    let fill = fillDrawCalls[f];
 
-                    updateMercatorUniforms(feature.uniforms, center, zoom, viewProjMat);
+                    updateMercatorUniforms(fill.uniforms, center, zoom, viewProjMat);
 
-                    for (let name in feature.uniforms) {
-                        feature.drawCall.uniform(name, feature.uniforms[name]);
+                    for (let name in fill.uniforms) {
+                        fill.drawCall.uniform(name, fill.uniforms[name]);
                     }
 
                     // DRAW
-                    feature.drawCall.draw();
+                    fill.drawCall.draw();
+                }
+
+                app.noBlend();
+
+                for (let f = 0; f < numFeatures; ++f) {
+                    let outline = outlineDrawCalls[f];
+
+                    updateMercatorUniforms(outline.uniforms, center, zoom, viewProjMat);
+
+                    for (let name in outline.uniforms) {
+                        outline.drawCall.uniform(name, outline.uniforms[name]);
+                    }
+
+                    // DRAW
+                    outline.drawCall.draw();
                 }
 
                 timer.end();
