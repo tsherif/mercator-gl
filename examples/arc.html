@@ -81,7 +81,7 @@
 
             float offsetFactor = factor - 0.5;
             float heightFactor = -4.0 * offsetFactor * offsetFactor + 1.0;
-            position.z += heightFactor * HEIGHT * distance(worldStart.xy, worldEnd.xy) * pico_mercator_meterDerivatives.x;
+            position.z += heightFactor * HEIGHT * distance(worldStart.xy, worldEnd.xy);
 
             gl_Position = pico_mercator_worldToClip(position);
         }
@@ -102,9 +102,7 @@
 
         const {
             injectMercatorGLSL,
-            highPrecisionMat4,
             highPrecisionLngLat,
-            mapboxViewProjectionMatrix,
             allocateMercatorUniforms,
             updateMercatorUniforms
         } = PicoMercator;
@@ -193,8 +191,6 @@
             .instanceAttributeBuffer(2, endPrecision)
             .vertexAttributeBuffer(3, segmentIndex);
   
-            let viewProjMat = highPrecisionMat4();
-
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
             .primitive(PicoGL.LINE_STRIP)
@@ -214,8 +210,7 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
-                updateMercatorUniforms(uniforms, center, zoom, viewProjMat);
+                updateMercatorUniforms(uniforms, center, zoom, map.transform.projMatrix);
 
                 for (let name in uniforms) {
                     drawCall.uniform(name, uniforms[name]);
