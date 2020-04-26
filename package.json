@@ -1,11 +1,11 @@
 {
-  "name": "gl-mercator",
+  "name": "mercator-gl",
   "version": "0.6.0",
   "description": "A minimal library for GLSL web mercator projections",
-  "main": "build/gl-mercator.min.js",
+  "main": "build/mercator-gl.min.js",
   "repository": {
     "type": "git",
-    "url": "https://github.com/tsherif/gl-mercator"
+    "url": "https://github.com/tsherif/mercator-gl"
   },
   "author": {
     "name": "Tarek Sherif",
@@ -29,7 +29,7 @@
   ],
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/tsherif/gl-mercator/issues"
+    "url": "https://github.com/tsherif/mercator-gl/issues"
   },
   "devDependencies": {
     "eslint": "^6.3.0",
