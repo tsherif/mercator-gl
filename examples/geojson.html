@@ -82,9 +82,7 @@
 
         const {
             injectMercatorGLSL,
-            highPrecisionMat4,
             highPrecisionLngLat,
-            mapboxViewProjectionMatrix,
             allocateMercatorUniforms,
             updateMercatorUniforms
         } = PicoMercator;
@@ -144,7 +142,6 @@
             // numFeatures = 1;
             let fillDrawCalls = new Array(numFeatures);
             let outlineDrawCalls = new Array(numFeatures);
-            let viewProjMat = highPrecisionMat4();
 
             for (let f = 0; f < numFeatures; ++f) {
                 let coordinates = earcut.flatten(data[f].geometry.coordinates);
@@ -194,8 +191,6 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
-
                 app.clear();
                 
                 app.blend()
@@ -204,7 +199,7 @@
                 for (let f = 0; f < numFeatures; ++f) {
                     let fill = fillDrawCalls[f];
 
-                    updateMercatorUniforms(fill.uniforms, center, zoom, viewProjMat);
+                    updateMercatorUniforms(fill.uniforms, center, zoom, map.transform.projMatrix);
 
                     for (let name in fill.uniforms) {
                         fill.drawCall.uniform(name, fill.uniforms[name]);
@@ -219,7 +214,7 @@
                 for (let f = 0; f < numFeatures; ++f) {
                     let outline = outlineDrawCalls[f];
 
-                    updateMercatorUniforms(outline.uniforms, center, zoom, viewProjMat);
+                    updateMercatorUniforms(outline.uniforms, center, zoom, map.transform.projMatrix);
 
                     for (let name in outline.uniforms) {
                         outline.drawCall.uniform(name, outline.uniforms[name]);

@@ -79,8 +79,6 @@
 
         const {
             injectMercatorGLSL,
-            highPrecisionMat4,
-            mapboxViewProjectionMatrix,
             allocateMercatorUniforms,
             updateMercatorUniforms
         } = PicoMercator;
@@ -144,8 +142,6 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
-        let viewProjMat = highPrecisionMat4();
-
         let uniforms = {
             alpha: 0.5
         };
@@ -161,9 +157,7 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
-
-                updateMercatorUniforms(uniforms, center, zoom, viewProjMat);
+                updateMercatorUniforms(uniforms, center, zoom, map.transform.projMatrix);
 
                 for (let name in uniforms) {
                     drawCall.uniform(name, uniforms[name]);

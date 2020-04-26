@@ -23,11 +23,8 @@
 
 // GLSL projection code from deck.gl https://github.com/uber/deck.gl
 // Used under MIT licence
-//
-// JavaScript projection functions from view-mercator-project https://github.com/uber-common/viewport-mercator-project
-// Used under MIT license
 
-import {mat4, vec4, vec3} from "gl-matrix";
+import {mat4, vec4} from "gl-matrix";
 
 const PI = Math.PI;
 const PI_4 = PI / 4;
@@ -53,7 +50,7 @@ vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation, vec2 lngLatPrecision) {
     if (pico_mercator_scale < PICO_MERCATOR_OFFSET_THRESHOLD) {
         mercatorPosition.xy = vec2(
             (radians(lngLatElevation.x) + PICO_MERCATOR_PI) * PICO_MERCATOR_WORLD_SCALE,
-            (PICO_MERCATOR_PI + log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLatElevation.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
+            (PICO_MERCATOR_PI - log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLatElevation.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
         ) * pico_mercator_scale;
         mercatorPosition.z = lngLatElevation.z * pico_mercator_meterDerivatives.x;
     } else {
@@ -61,7 +58,7 @@ vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation, vec2 lngLatPrecision) {
         float dy = mercatorPosition.y;
         mercatorPosition = vec3(
             mercatorPosition.x * pico_mercator_angleDerivatives.x,
-            mercatorPosition.y * (pico_mercator_angleDerivatives.y + dy * pico_mercator_angleDerivatives.z),
+            -mercatorPosition.y * (pico_mercator_angleDerivatives.y - dy * pico_mercator_angleDerivatives.z),
             lngLatElevation.z * (pico_mercator_meterDerivatives.x + dy * pico_mercator_meterDerivatives.y)
         );
     }
@@ -113,16 +110,9 @@ vec4 pico_mercator_lngLatToClip(vec2 lngLat) {
 
 // High-precision for intermediate calculations
 let tempCenter64 = new Float64Array(4);
-let tempViewTranslation64 = new Float64Array(3);
-let tempViewMatrix = new Float64Array(16);
-let tempProjectionMatrix = new Float64Array(16);
 
 // Low-precision for uniforms and to avoid instability
 let lngLat32 = new Float32Array(2);
-
-export function highPrecisionMat4() {
-    return mat4.identity(new Float64Array(16));
-}
 
 export function highPrecisionLngLat(lngLat, offset = 0, stride = 2) {
     let numElements = Math.ceil((lngLat.length - offset) / stride);
@@ -179,57 +169,6 @@ export function updateMercatorUniforms(uniforms, lngLat, zoom, viewProjectionMat
     return uniforms;
 }
 
-export function mapboxViewMatrix(out, lngLat, zoom, pitch, bearing, canvasHeight) {
-    mat4.identity(out);
-
-    // Camera translation (from view center)
-    tempViewTranslation64[2] = -1.5 * canvasHeight;
-    mat4.translate(out, out, tempViewTranslation64);
-
-    // Camera rotation
-    mat4.rotateX(out, out, -pitch * DEGREES_TO_RADIANS);
-    mat4.rotateZ(out, out, bearing * DEGREES_TO_RADIANS);
-
-    // Translation to view center
-    lngLatToWorld(tempCenter64, lngLat, zoom);
-    mat4.translate(out, out, vec3.negate(tempCenter64, tempCenter64));
-
-    return out;
-}
-
-export function mapboxProjectionMatrix(out, pitch, canvasWidth, canvasHeight) {
-    let altitude = 1.5 * canvasHeight;
-    let pitchRadians = pitch * DEGREES_TO_RADIANS;
-    let halfFov = Math.atan(1 / 3);   // Math.atan(0.5 * canvasHeight / altitude) => Math.atan(1 / 3)
-
-    let topHalfSurfaceDistance = Math.sin(halfFov) * altitude / Math.sin(Math.PI / 2 - pitchRadians - halfFov);
-
-    // Calculate z value of the farthest fragment that should be rendered (plus an epsilon).
-    let fov = 2 * halfFov;
-    let aspect = canvasWidth / canvasHeight;
-    let near = 0.1 * altitude;
-    let far = (Math.cos(Math.PI / 2 - pitchRadians) * topHalfSurfaceDistance + altitude) * 1.01;
-
-    mat4.perspective(
-        out,
-        fov,      // fov in radians
-        aspect,   // aspect ratio
-        near,     // near plane
-        far       // far plane
-    );
-
-    return out;
-}
-
-export function mapboxViewProjectionMatrix(out, lngLat, zoom, pitch, bearing, canvasWidth, canvasHeight) {
-    mapboxViewMatrix(tempViewMatrix, lngLat, zoom, pitch, bearing, canvasHeight);
-    mapboxProjectionMatrix(tempProjectionMatrix, pitch, canvasWidth, canvasHeight);
-
-    mat4.multiply(out, tempProjectionMatrix, tempViewMatrix);
-
-    return out;
-}
-
 export function pixelsPerMeter(latitude, zoom, latCosine = Math.cos(latitude * DEGREES_TO_RADIANS)) {
     let scale = Math.pow(2, zoom);
     
@@ -255,7 +194,7 @@ export function lngLatToWorld(out, lngLat, zoom) {
     let lambda2 = longitude * DEGREES_TO_RADIANS;
     let phi2 = latitude * DEGREES_TO_RADIANS;
     let x = scale * TILE_SIZE * (lambda2 + PI) / (2 * PI);
-    let y = scale * TILE_SIZE * (PI + Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
+    let y = scale * TILE_SIZE * (PI - Math.log(Math.tan(PI_4 + phi2 * 0.5))) / (2 * PI);
 
     out[0] = x;
     out[1] = y;

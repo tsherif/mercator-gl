@@ -101,9 +101,7 @@
 
         const {
             injectMercatorGLSL,
-            highPrecisionMat4,
             highPrecisionLngLat,
-            mapboxViewProjectionMatrix,
             pixelsPerMeter,
             allocateMercatorUniforms,
             updateMercatorUniforms
@@ -195,7 +193,6 @@
             .vertexAttributeBuffer(3, colummPositions)
             .vertexAttributeBuffer(4, colummNormals);
   
-            let viewProjMat = highPrecisionMat4();
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, vertexArray)
@@ -214,11 +211,9 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
-
                 drawCall.uniform("pixelsPerMeter", pixelsPerMeter(center[1], zoom));
 
-                updateMercatorUniforms(uniforms, center, zoom, viewProjMat);
+                updateMercatorUniforms(uniforms, center, zoom, map.transform.projMatrix);
 
                 for (let name in uniforms) {
                     drawCall.uniform(name, uniforms[name]);
