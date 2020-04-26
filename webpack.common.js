@@ -1,11 +1,11 @@
 const path = require('path');
 
 module.exports = {
-    entry: "./src/pico-mercator.js",
+    entry: "./src/mercator-gl.js",
     output: {
-        library: "PicoMercator",
+        library: "MercatorGL",
         path: path.resolve(__dirname, "build"),
-        filename: "pico-mercator.min.js",
+        filename: "mercator-gl.min.js",
         libraryTarget: "umd"
     }
 };

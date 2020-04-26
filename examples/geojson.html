@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PicoMercator GeoJSON</title>
+    <title>MercatorGL GeoJSON</title>
     <meta charset="utf-8">
-    <script src="../build/pico-mercator.min.js"></script>
+    <script src="../build/mercator-gl.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
     <script src="./lib/earcut.min.js"></script>
@@ -63,7 +63,7 @@
         layout(location=1) in vec2 precisionBits;
 
         void main() {
-            gl_Position = pico_mercator_lngLatToClip(positions, precisionBits);
+            gl_Position = mercator_gl_lngLatToClip(positions, precisionBits);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -85,7 +85,7 @@
             highPrecisionLngLat,
             allocateMercatorUniforms,
             updateMercatorUniforms
-        } = PicoMercator;
+        } = MercatorGL;
 
         const INITIAL_ZOOM = 12;
         const INITIAL_CENTER = [-122.427, 37.752];

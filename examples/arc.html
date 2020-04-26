@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PicoMercator Arc</title>
+    <title>MercatorGL Arc</title>
     <meta charset="utf-8">
-    <script src="../build/pico-mercator.min.js"></script>
+    <script src="../build/mercator-gl.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
     <script src="./lib/utils.js"></script>
@@ -73,8 +73,8 @@
             vec2 startPosition = positions.xy;
             vec2 endPosition = positions.zw;
 
-            vec4 worldStart = pico_mercator_lngLatToWorld(startPosition, startPrecisionBits);
-            vec4 worldEnd = pico_mercator_lngLatToWorld(endPosition, endPrecisionBits);
+            vec4 worldStart = mercator_gl_lngLatToWorld(startPosition, startPrecisionBits);
+            vec4 worldEnd = mercator_gl_lngLatToWorld(endPosition, endPrecisionBits);
 
             vec4 position = mix(worldStart, worldEnd, factor);
             vFactor = factor;
@@ -83,7 +83,7 @@
             float heightFactor = -4.0 * offsetFactor * offsetFactor + 1.0;
             position.z += heightFactor * HEIGHT * distance(worldStart.xy, worldEnd.xy);
 
-            gl_Position = pico_mercator_worldToClip(position);
+            gl_Position = mercator_gl_worldToClip(position);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -105,7 +105,7 @@
             highPrecisionLngLat,
             allocateMercatorUniforms,
             updateMercatorUniforms
-        } = PicoMercator;
+        } = MercatorGL;
 
         const INITIAL_ZOOM = 11.5;
         const INITIAL_CENTER = [-122.427, 37.752];

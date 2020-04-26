@@ -24,7 +24,8 @@
 // GLSL projection code from deck.gl https://github.com/uber/deck.gl
 // Used under MIT licence
 
-import {mat4, vec4} from "gl-matrix";
+// transformMat4 rom gl-matrix https://github.com/toji/gl-matrix/blob/master/src/vec4.js
+// Used under MIT licence
 
 const PI = Math.PI;
 const PI_4 = PI / 4;
@@ -33,31 +34,31 @@ const TILE_SIZE = 512;
 const EARTH_CIRCUMFERENCE = 40.03e6;
 
 const PROJECTION_GLSL = `
-#define PICO_MERCATOR_TILE_SIZE 512.0
-#define PICO_MERCATOR_PI 3.1415926536
-#define PICO_MERCATOR_WORLD_SCALE (PICO_MERCATOR_TILE_SIZE / (PICO_MERCATOR_PI * 2.0))
-#define PICO_MERCATOR_OFFSET_THRESHOLD 4096.0
+#define MERCATOR_GL_TILE_SIZE 512.0
+#define MERCATOR_GL_PI 3.1415926536
+#define MERCATOR_GL_WORLD_SCALE (MERCATOR_GL_TILE_SIZE / (MERCATOR_GL_PI * 2.0))
+#define MERCATOR_GL_OFFSET_THRESHOLD 4096.0
 
-uniform vec2 pico_mercator_lngLatCenter;
-uniform vec3 pico_mercator_angleDerivatives;
-uniform float pico_mercator_scale;
-uniform vec4 pico_mercator_clipCenter;
-uniform mat4 pico_mercator_viewProjectionMatrix;
+uniform vec2 mercator_gl_lngLatCenter;
+uniform vec3 mercator_gl_angleDerivatives;
+uniform float mercator_gl_scale;
+uniform vec4 mercator_gl_clipCenter;
+uniform mat4 mercator_gl_viewProjectionMatrix;
 
-vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation, vec2 lngLatPrecision) {
+vec4 mercator_gl_lngLatToWorld(vec3 lngLatElevation, vec2 lngLatPrecision) {
     vec3 mercatorPosition;
-    if (pico_mercator_scale < PICO_MERCATOR_OFFSET_THRESHOLD) {
+    if (mercator_gl_scale < MERCATOR_GL_OFFSET_THRESHOLD) {
         mercatorPosition.xy = vec2(
-            (radians(lngLatElevation.x) + PICO_MERCATOR_PI) * PICO_MERCATOR_WORLD_SCALE,
-            (PICO_MERCATOR_PI - log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLatElevation.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
-        ) * pico_mercator_scale;
+            (radians(lngLatElevation.x) + MERCATOR_GL_PI) * MERCATOR_GL_WORLD_SCALE,
+            (MERCATOR_GL_PI - log(tan(MERCATOR_GL_PI * 0.25 + radians(lngLatElevation.y) * 0.5))) * MERCATOR_GL_WORLD_SCALE
+        ) * mercator_gl_scale;
         mercatorPosition.z = lngLatElevation.z;
     } else {
-        mercatorPosition.xy = (lngLatElevation.xy - pico_mercator_lngLatCenter) + lngLatPrecision;
+        mercatorPosition.xy = (lngLatElevation.xy - mercator_gl_lngLatCenter) + lngLatPrecision;
         float dy = mercatorPosition.y;
         mercatorPosition = vec3(
-            mercatorPosition.x * pico_mercator_angleDerivatives.x,
-            -mercatorPosition.y * (pico_mercator_angleDerivatives.y - dy * pico_mercator_angleDerivatives.z),
+            mercatorPosition.x * mercator_gl_angleDerivatives.x,
+            -mercatorPosition.y * (mercator_gl_angleDerivatives.y - dy * mercator_gl_angleDerivatives.z),
             lngLatElevation.z
         );
     }
@@ -65,44 +66,44 @@ vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation, vec2 lngLatPrecision) {
     return vec4(mercatorPosition, 1.0);
 }
 
-vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation) {
-    return pico_mercator_lngLatToWorld(lngLatElevation, vec2(0.0));
+vec4 mercator_gl_lngLatToWorld(vec3 lngLatElevation) {
+    return mercator_gl_lngLatToWorld(lngLatElevation, vec2(0.0));
 }
 
-vec4 pico_mercator_lngLatToWorld(vec2 lngLat, vec2 lngLatPrecision) {
-    return pico_mercator_lngLatToWorld(vec3(lngLat, 0.0), lngLatPrecision);
+vec4 mercator_gl_lngLatToWorld(vec2 lngLat, vec2 lngLatPrecision) {
+    return mercator_gl_lngLatToWorld(vec3(lngLat, 0.0), lngLatPrecision);
 }
 
-vec4 pico_mercator_lngLatToWorld(vec2 lngLat) {
-    return pico_mercator_lngLatToWorld(vec3(lngLat, 0.0));
+vec4 mercator_gl_lngLatToWorld(vec2 lngLat) {
+    return mercator_gl_lngLatToWorld(vec3(lngLat, 0.0));
 }
 
-vec4 pico_mercator_worldToClip(vec4 worldPosition) {
-    if (pico_mercator_scale >= PICO_MERCATOR_OFFSET_THRESHOLD) {
+vec4 mercator_gl_worldToClip(vec4 worldPosition) {
+    if (mercator_gl_scale >= MERCATOR_GL_OFFSET_THRESHOLD) {
         worldPosition.w = 0.0;
     }
-    vec4 clipPosition = pico_mercator_viewProjectionMatrix * worldPosition;
-    if (pico_mercator_scale >= PICO_MERCATOR_OFFSET_THRESHOLD) {
-        clipPosition += pico_mercator_clipCenter;
+    vec4 clipPosition = mercator_gl_viewProjectionMatrix * worldPosition;
+    if (mercator_gl_scale >= MERCATOR_GL_OFFSET_THRESHOLD) {
+        clipPosition += mercator_gl_clipCenter;
     }
 
     return clipPosition;
 }
 
-vec4 pico_mercator_lngLatToClip(vec3 lngLatElevation, vec2 lngLatPrecision) {
-    return pico_mercator_worldToClip(pico_mercator_lngLatToWorld(lngLatElevation, lngLatPrecision));
+vec4 mercator_gl_lngLatToClip(vec3 lngLatElevation, vec2 lngLatPrecision) {
+    return mercator_gl_worldToClip(mercator_gl_lngLatToWorld(lngLatElevation, lngLatPrecision));
 }
 
-vec4 pico_mercator_lngLatToClip(vec3 lngLatElevation) {
-    return pico_mercator_lngLatToClip(lngLatElevation, vec2(0.0));
+vec4 mercator_gl_lngLatToClip(vec3 lngLatElevation) {
+    return mercator_gl_lngLatToClip(lngLatElevation, vec2(0.0));
 }
 
-vec4 pico_mercator_lngLatToClip(vec2 lngLat, vec2 lngLatPrecision) {
-    return pico_mercator_lngLatToClip(vec3(lngLat, 0.0), lngLatPrecision);
+vec4 mercator_gl_lngLatToClip(vec2 lngLat, vec2 lngLatPrecision) {
+    return mercator_gl_lngLatToClip(vec3(lngLat, 0.0), lngLatPrecision);
 }
 
-vec4 pico_mercator_lngLatToClip(vec2 lngLat) {
-    return pico_mercator_lngLatToClip(vec3(lngLat, 0.0));
+vec4 mercator_gl_lngLatToClip(vec2 lngLat) {
+    return mercator_gl_lngLatToClip(vec3(lngLat, 0.0));
 }
 
 `;
@@ -135,11 +136,11 @@ export function injectMercatorGLSL(vsSource) {
 }
 
 export function allocateMercatorUniforms(uniforms = {}) {
-    uniforms.pico_mercator_lngLatCenter = new Float32Array(2);
-    uniforms.pico_mercator_angleDerivatives = new Float32Array(3);
-    uniforms.pico_mercator_clipCenter = new Float32Array(4);
-    uniforms.pico_mercator_viewProjectionMatrix = new Float32Array(16);
-    uniforms.pico_mercator_scale = 0;
+    uniforms.mercator_gl_lngLatCenter = new Float32Array(2);
+    uniforms.mercator_gl_angleDerivatives = new Float32Array(3);
+    uniforms.mercator_gl_clipCenter = new Float32Array(4);
+    uniforms.mercator_gl_viewProjectionMatrix = new Float32Array(16);
+    uniforms.mercator_gl_scale = 0;
 
     return uniforms;
 }
@@ -148,20 +149,20 @@ export function updateMercatorUniforms(uniforms, lngLat, zoom, viewProjectionMat
     let longitude = lngLat[0];
     let latitude = lngLat[1];
 
-    uniforms.pico_mercator_scale = Math.pow(2, zoom);
+    uniforms.mercator_gl_scale = Math.pow(2, zoom);
 
-    uniforms.pico_mercator_lngLatCenter[0] = longitude;
-    uniforms.pico_mercator_lngLatCenter[1] = latitude;
+    uniforms.mercator_gl_lngLatCenter[0] = longitude;
+    uniforms.mercator_gl_lngLatCenter[1] = latitude;
 
     let latCosine = Math.cos(latitude * DEGREES_TO_RADIANS);
     let latCosine2 = DEGREES_TO_RADIANS * Math.tan(latitude * DEGREES_TO_RADIANS) / latCosine;
-    angleDerivatives(uniforms.pico_mercator_angleDerivatives, latitude, zoom, latCosine, latCosine2);
+    angleDerivatives(uniforms.mercator_gl_angleDerivatives, latitude, zoom, latCosine, latCosine2);
 
     lngLat32[0] = longitude;
     lngLat32[1] = latitude;
-    lngLatToClip(uniforms.pico_mercator_clipCenter, lngLat32, zoom, viewProjectionMatrix);
+    lngLatToClip(uniforms.mercator_gl_clipCenter, lngLat32, zoom, viewProjectionMatrix);
 
-    uniforms.pico_mercator_viewProjectionMatrix.set(viewProjectionMatrix);
+    uniforms.mercator_gl_viewProjectionMatrix.set(viewProjectionMatrix);
  
     return uniforms;
 }
@@ -202,7 +203,7 @@ export function lngLatToWorld(out, lngLat, zoom) {
 }
 
 export function worldToClip(out, worldPosition, viewProjectionMatrix) {
-    vec4.transformMat4(out, worldPosition, viewProjectionMatrix);
+    transformMat4(out, worldPosition, viewProjectionMatrix);
 
     return out;
 }
@@ -214,8 +215,19 @@ export function lngLatToClip(out, lngLat, zoom, viewProjectionMatrix) {
     return out;
 }
 
-
 function angleDerivatives(out, latitude, zoom, latCosine, latCosine2) {
     pixelsPerDegree(out, latitude, zoom, latCosine);
     out[2] = out[0] * latCosine2 / 2;
+}
+
+function transformMat4(out, a, m) {
+  let x = a[0];
+  let y = a[1];
+  let z = a[2];
+  let w = a[3];
+  out[0] = m[0] * x + m[4] * y + m[8] * z + m[12] * w;
+  out[1] = m[1] * x + m[5] * y + m[9] * z + m[13] * w;
+  out[2] = m[2] * x + m[6] * y + m[10] * z + m[14] * w;
+  out[3] = m[3] * x + m[7] * y + m[11] * z + m[15] * w;
+  return out;
 }
