@@ -40,7 +40,6 @@ const PROJECTION_GLSL = `
 
 uniform vec2 pico_mercator_lngLatCenter;
 uniform vec3 pico_mercator_angleDerivatives;
-uniform vec2 pico_mercator_meterDerivatives;
 uniform float pico_mercator_scale;
 uniform vec4 pico_mercator_clipCenter;
 uniform mat4 pico_mercator_viewProjectionMatrix;
@@ -52,14 +51,14 @@ vec4 pico_mercator_lngLatToWorld(vec3 lngLatElevation, vec2 lngLatPrecision) {
             (radians(lngLatElevation.x) + PICO_MERCATOR_PI) * PICO_MERCATOR_WORLD_SCALE,
             (PICO_MERCATOR_PI - log(tan(PICO_MERCATOR_PI * 0.25 + radians(lngLatElevation.y) * 0.5))) * PICO_MERCATOR_WORLD_SCALE
         ) * pico_mercator_scale;
-        mercatorPosition.z = lngLatElevation.z * pico_mercator_meterDerivatives.x;
+        mercatorPosition.z = lngLatElevation.z;
     } else {
         mercatorPosition.xy = (lngLatElevation.xy - pico_mercator_lngLatCenter) + lngLatPrecision;
         float dy = mercatorPosition.y;
         mercatorPosition = vec3(
             mercatorPosition.x * pico_mercator_angleDerivatives.x,
             -mercatorPosition.y * (pico_mercator_angleDerivatives.y - dy * pico_mercator_angleDerivatives.z),
-            lngLatElevation.z * (pico_mercator_meterDerivatives.x + dy * pico_mercator_meterDerivatives.y)
+            lngLatElevation.z
         );
     }
 
@@ -138,7 +137,6 @@ export function injectMercatorGLSL(vsSource) {
 export function allocateMercatorUniforms(uniforms = {}) {
     uniforms.pico_mercator_lngLatCenter = new Float32Array(2);
     uniforms.pico_mercator_angleDerivatives = new Float32Array(3);
-    uniforms.pico_mercator_meterDerivatives = new Float32Array(2);
     uniforms.pico_mercator_clipCenter = new Float32Array(4);
     uniforms.pico_mercator_viewProjectionMatrix = new Float32Array(16);
     uniforms.pico_mercator_scale = 0;
@@ -158,7 +156,6 @@ export function updateMercatorUniforms(uniforms, lngLat, zoom, viewProjectionMat
     let latCosine = Math.cos(latitude * DEGREES_TO_RADIANS);
     let latCosine2 = DEGREES_TO_RADIANS * Math.tan(latitude * DEGREES_TO_RADIANS) / latCosine;
     angleDerivatives(uniforms.pico_mercator_angleDerivatives, latitude, zoom, latCosine, latCosine2);
-    meterDerivatives(uniforms.pico_mercator_meterDerivatives, latitude, zoom, latCosine, latCosine2);
 
     lngLat32[0] = longitude;
     lngLat32[1] = latitude;
@@ -221,13 +218,4 @@ export function lngLatToClip(out, lngLat, zoom, viewProjectionMatrix) {
 function angleDerivatives(out, latitude, zoom, latCosine, latCosine2) {
     pixelsPerDegree(out, latitude, zoom, latCosine);
     out[2] = out[0] * latCosine2 / 2;
-}
-
-function meterDerivatives(out, latitude, zoom, latCosine, latCosine2) {
-    let scale = Math.pow(2, zoom);
-
-    out[0] = pixelsPerMeter(latitude, zoom, latCosine);
-    out[1] = scale * TILE_SIZE / EARTH_CIRCUMFERENCE * latCosine2;
-
-    return out;
 }
