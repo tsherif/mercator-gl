@@ -1,9 +1,11 @@
-PicoMercator
-============
+MercatorGL
+==========
 
-PicoMercator is a minimal library for doing web mercator projections in WebGL in a manner compatible with [Mapbox GL](https://github.com/mapbox/mapbox-gl-js). It provides GLSL code for projecting longitude/latitude coordinates into 3D space, and JavaScript functions to create view and projection matrices to overlay them onto a map rendered by Mapbox GL. PicoMercator focuses on numerical stability by performing most calculations at 64-bit precision, and switching to an "offset mode" at higher zoom levels (using a technique borrowed from [deck.gl](https://medium.com/vis-gl/how-sometimes-assuming-the-earth-is-flat-helps-speed-up-rendering-in-deck-gl-c43b72fd6db4)).
+MercatorGL is a minimal library for calculating web mercator projections on a GPU using WebGL. It provides utilities to inject GLSL code for projecting longitude/latitude coordinates into already exisiting vertex shader code and calculate the uniforms it requires. MercatorGL focuses on numerical stability by performing most calculations at 64-bit precision, and switching to an "offset mode" at higher zoom levels (using a technique borrowed from [deck.gl](https://medium.com/vis-gl/how-sometimes-assuming-the-earth-is-flat-helps-speed-up-rendering-in-deck-gl-c43b72fd6db4)).
 
-Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element, and updating to match the current map view. PicoMercator provides a function `injectMercatorGLSL` to insert functions `pico_mercator_lngLatToWorld`, `pico_mercator_worldToClip`, and `pico_mercator_lngLatToClip` into vertex shader source code so the mercator projection can be done on the GPU. The JavaScript functions `allocateMercatorUniforms` and `updateMercatorUniforms` are provided to initialize and update the values of uniforms used by PicoMercator. The application can then use the values to set program uniforms in whatever way is most appropriate.
+Following [Mapbox conventions](https://blog.mapbox.com/512-map-tiles-cb5bfd6e72ba) input coordinates are transformed to a 512x512 Mercator space, with (0, 0) at the top-left and (512, 512) at the bottom-right. Z-coordinates, if provided, are interpreted as meter elevations. The application must provide a projection matrix (via `updateMercatorUniforms`) to map from Mercator space into clip space.
+
+An example of usage with [MapboxGL](https://docs.mapbox.com/mapbox-gl-js/api/) is shown below.
 
 ```JavaScript
 
@@ -18,10 +20,10 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
         #version 300 es
         layout(location=0) in vec2 lngLatPosition;
         void main() {
-            // pico_mercator_lngLatToClip function injected by injectMercatorGLSL().
-            // pico_mercator_lngLatToWorld and pico_mercator_worldToClip also available to do
+            // mercator_gl_lngLatToClip function injected by injectMercatorGLSL().
+            // mercator_gl_lngLatToWorld and mercator_gl_worldToClip also available to do
             // projection in multiple steps.
-            gl_Position = pico_mercator_lngLatToClip(position);
+            gl_Position = mercator_gl_lngLatToClip(position);
         }
     `;
 
@@ -41,16 +43,12 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
     let fragmentShaderSource =  fs;
     // Create WebGL program from vertexShaderSource and fragmentShaderSource
 
-    // Use 64-bit precision matrices to avoid numerical instability 
-    // in intermediate calculations
-    let viewProjectionMatrix = highPrecisionMat4();
-
     let uniforms = {
-        // An application uniform, not used by PicoMercator
+        // An application uniform, not used by MercatorGL
         color: new Float32Array(1.0, 0.0, 0.0, 1.0);
     };
 
-    // Uniforms used by PicoMercator are added to the map.
+    // Uniforms used by MercatorGL are added to the map.
     allocateMercatorUniforms(uniforms);
 
     map.on("render", (e) => {
@@ -59,19 +57,9 @@ Basic usage involves rendering to a WebGL canvas overlayed on the Mapbox element
         let pitch = map.getPitch();
         let bearing = map.getBearing();
 
-        mapboxViewProjectionMatrix(
-            viewProjectionMatrix,
-            center,
-            zoom,
-            pitch,
-            bearing,
-            canvas.width,
-            canvas.height
-        );
-
-        // Update the values of PicoMercator uniforms in the map.
-        // The application can use these to update program uniforms.
-        updateMercatorUniforms(uniforms, center, zoom, viewProjectionMatrix);
+        // Update the values of MercatorGL uniforms in the map (including projection matrix provided by Mapbox).
+        // The application must use the map to update program uniforms used by MercatorGL.
+        updateMercatorUniforms(uniforms, center, zoom, map.transform.projMatrix);
 
         // Draw to canvas
     });

@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>PicoMercator Triangle</title>
+    <title>MercatorGL Triangle</title>
     <meta charset="utf-8">
-    <script src="../build/pico-mercator.min.js"></script>
+    <script src="../build/mercator-gl.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
     <link href="./lib/mapbox-gl.css" rel="stylesheet" />
@@ -58,7 +58,7 @@
         out vec3 vColor; 
         void main() {
             vColor = color;
-            gl_Position =  pico_mercator_lngLatToClip(position);
+            gl_Position =  mercator_gl_lngLatToClip(position);
         }
     </script>
     <script type="shader/fs" id="fs">
@@ -79,11 +79,9 @@
 
         const {
             injectMercatorGLSL,
-            highPrecisionMat4,
-            mapboxViewProjectionMatrix,
             allocateMercatorUniforms,
             updateMercatorUniforms
-        } = PicoMercator;
+        } = MercatorGL;
 
         const INITIAL_ZOOM = 14;
         const INITIAL_CENTER = [-73.982130, 40.762896];
@@ -144,8 +142,6 @@
         .vertexAttributeBuffer(0, positions)
         .vertexAttributeBuffer(1, colors, { normalized: true });
 
-        let viewProjMat = highPrecisionMat4();
-
         let uniforms = {
             alpha: 0.5
         };
@@ -161,9 +157,7 @@
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
 
-                mapboxViewProjectionMatrix(viewProjMat, center, zoom, pitch, bearing, app.width, app.height);
-
-                updateMercatorUniforms(uniforms, center, zoom, viewProjMat);
+                updateMercatorUniforms(uniforms, center, zoom, map.transform.projMatrix);
 
                 for (let name in uniforms) {
                     drawCall.uniform(name, uniforms[name]);
