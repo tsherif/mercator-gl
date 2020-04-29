@@ -4,6 +4,7 @@
     <title>MercatorGL Columns</title>
     <meta charset="utf-8">
     <script src="../build/mercator-gl.min.js"></script>
+    <script src="./lib/webglx.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
     <script src="./lib/utils.js"></script>
@@ -55,18 +56,16 @@
     <div id="mapbox"></div>
     <canvas id="gl-canvas"></canvas>
     <script type="shader/vs" id="vs">
-        #version 300 es
-
-        layout(location=0) in vec3 positions;
-        layout(location=1) in vec2 precisionBits;
-        layout(location=2) in vec3 colors;
-        layout(location=3) in vec3 columnPosition;
-        layout(location=4) in vec3 columnNormal;
+        attribute vec3 positions;
+        attribute vec2 precisionBits;
+        attribute vec3 colors;
+        attribute vec3 columnPosition;
+        attribute vec3 columnNormal;
 
         uniform float pixelsPerMeter;
 
-        out vec3 vNormal;
-        out vec3 vColor;
+        varying vec3 vNormal;
+        varying vec3 vColor;
 
         void main() {
             vec3 lngLatElevation = vec3(
@@ -83,18 +82,16 @@
         }
     </script>
     <script type="shader/fs" id="fs">
-        #version 300 es
         precision highp float;
         
         #define LIGHT_DIR normalize(vec3(-1.0, -1.0, -1.0))
 
-        in vec3 vNormal;
-        in vec3 vColor;
+        varying vec3 vNormal;
+        varying vec3 vColor;
 
-        out vec4 fragColor;
         void main() {
             float light = dot(normalize(vNormal), -LIGHT_DIR) + 0.1;
-            fragColor = vec4(vColor * light, 1.0);
+            gl_FragColor = vec4(vColor * light, 1.0);
         }
     </script>
     <script>
@@ -132,9 +129,17 @@
             maxZoom: 20
         });
         
-        let app = PicoGL.createApp(canvas, { alpha: true })
+        let gl = WebGLX.getContext(canvas, {
+            requireExtensions: [
+                "ANGLE_instanced_arrays",
+                "OES_vertex_array_object"
+            ],
+            contextOptions: { alpha: true },
+            forceWebGL1: true
+        });
+        let app = PicoGL.createApp(gl)
         .clearColor(0.0, 0.0, 0.0, 0.0)
-        .depthTest();
+        .enable(PicoGL.DEPTH_TEST);
 
         let timer = app.createTimer();
 
@@ -155,6 +160,11 @@
             app.createPrograms([vsSource, fsSource]),
             fetch('./data/sf.bike.parking.json').then(response => response.json())
         ]).then(([[program], rawData]) => {
+            program.bindAttribute(0, "positions")
+            .bindAttribute(1, "precisionBits")
+            .bindAttribute(2, "colors")
+            .bindAttribute(3, "columnPosition")
+            .bindAttribute(4, "columnNormal");
             
             let data = utils.pointsToWorldGrid(rawData, 500);
 

@@ -4,6 +4,7 @@
     <title>MercatorGL Scatterplot</title>
     <meta charset="utf-8">
     <script src="../build/mercator-gl.min.js"></script>
+    <script src="./lib/webglx.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
     <script src="./lib/utils.js"></script>
@@ -55,18 +56,16 @@
     <div id="mapbox"></div>
     <canvas id="gl-canvas"></canvas>
     <script type="shader/vs" id="vs">
-        #version 300 es
-
-        layout(location=0) in vec2 positions;
-        layout(location=1) in vec2 precisionBits;
-        layout(location=2) in float radius;
-        layout(location=3) in vec3 shapePosition;
+        attribute vec2 positions;
+        attribute vec2 precisionBits;
+        attribute float radius;
+        attribute vec3 shapePosition;
 
         uniform float pixelsPerMeter;
         uniform float radiusScale;
         uniform vec2 radiusLimits;
 
-        out vec3 vShapePosition;
+        varying vec3 vShapePosition;
 
         void main() {
             vShapePosition = shapePosition;
@@ -78,18 +77,16 @@
         }
     </script>
     <script type="shader/fs" id="fs">
-        #version 300 es
         precision highp float;
                 
-        in vec3 vShapePosition;
+        varying vec3 vShapePosition;
 
-        out vec4 fragColor;
         void main() {
             if (dot(vShapePosition, vShapePosition) > 1.0) {
                 discard;
             }
 
-            fragColor = vec4(1.0, 0.5, 0.0, 1.0);
+            gl_FragColor = vec4(1.0, 0.5, 0.0, 1.0);
         }
     </script>
     <script>
@@ -123,9 +120,17 @@
             maxZoom: 20
         });
         
-        let app = PicoGL.createApp(canvas, { alpha: true })
+        let gl = WebGLX.getContext(canvas, {
+            requireExtensions: [
+                "ANGLE_instanced_arrays",
+                "OES_vertex_array_object"
+            ],
+            contextOptions: { alpha: true },
+            forceWebGL1: true
+        })
+        let app = PicoGL.createApp(gl)
         .clearColor(0.0, 0.0, 0.0, 0.0)
-        .depthTest();
+        .enable(PicoGL.DEPTH_TEST);
 
         let timer = app.createTimer();
 
@@ -146,6 +151,10 @@
             app.createPrograms([vsSource, fsSource]),
             fetch('./data/sf.bike.parking.json').then(response => response.json())
         ]).then(([[program], data]) => {
+            program.bindAttribute(0, "positions")
+            .bindAttribute(1, "precisionBits")
+            .bindAttribute(2, "radius")
+            .bindAttribute(3, "shapePosition");
 
             let positionData = new Float32Array(data.length * 2);
             let radiusData = new Float32Array(data.length);

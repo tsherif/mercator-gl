@@ -4,6 +4,7 @@
     <title>MercatorGL GeoJSON</title>
     <meta charset="utf-8">
     <script src="../build/mercator-gl.min.js"></script>
+    <script src="./lib/webglx.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
     <script src="./lib/earcut.min.js"></script>
@@ -56,26 +57,23 @@
     <div id="mapbox"></div>
     <canvas id="gl-canvas"></canvas>
     <script type="shader/vs" id="vs">
-        #version 300 es
         #define HEIGHT 10.0
 
-        layout(location=0) in vec2 positions;
-        layout(location=1) in vec2 precisionBits;
+        attribute vec2 positions;
+        attribute vec2 precisionBits;
 
         void main() {
             gl_Position = mercator_gl_lngLatToClip(positions, precisionBits);
         }
     </script>
     <script type="shader/fs" id="fs">
-        #version 300 es
         precision highp float;
     
         uniform vec4 uColor;
 
-        out vec4 fragColor;
         void main() {
-            fragColor = uColor;
-            fragColor.rgb *= fragColor.a;
+            gl_FragColor = uColor;
+            gl_FragColor.rgb *= gl_FragColor.a;
         }
     </script>
     <script>
@@ -112,9 +110,16 @@
             maxZoom: 20
         });
         
-        let app = PicoGL.createApp(canvas, { alpha: true })
+        let gl = WebGLX.getContext(canvas, {
+            requireExtensions: [
+                "OES_vertex_array_object"
+            ],
+            contextOptions: { alpha: true },
+            forceWebGL1: true
+        });
+        let app = PicoGL.createApp(gl)
         .clearColor(0.0, 0.0, 0.0, 0.0)
-        .depthTest();
+        .enable(PicoGL.DEPTH_TEST);
 
         let timer = app.createTimer();
 
@@ -135,6 +140,8 @@
             app.createPrograms([vsSource, fsSource]),
             fetch('./data/sf.zip.geo.json').then(response => response.json())
         ]).then(([[program], data]) => {
+            program.bindAttribute(0, "positions")
+            .bindAttribute(1, "precisionBits");
 
             data = data.features;
 
@@ -193,7 +200,7 @@
 
                 app.clear();
                 
-                app.blend()
+                app.enable(PicoGL.BLEND)
                 .blendFunc(PicoGL.ONE, PicoGL.ONE_MINUS_SRC_ALPHA);
 
                 for (let f = 0; f < numFeatures; ++f) {
@@ -209,7 +216,7 @@
                     fill.drawCall.draw();
                 }
 
-                app.noBlend();
+                app.disable(PicoGL.BLEND);
 
                 for (let f = 0; f < numFeatures; ++f) {
                     let outline = outlineDrawCalls[f];

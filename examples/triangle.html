@@ -4,6 +4,7 @@
     <title>MercatorGL Triangle</title>
     <meta charset="utf-8">
     <script src="../build/mercator-gl.min.js"></script>
+    <script src="./lib/webglx.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
     <link href="./lib/mapbox-gl.css" rel="stylesheet" />
@@ -50,29 +51,25 @@
     <div id="mapbox"></div>
     <canvas id="gl-canvas"></canvas>
     <script type="shader/vs" id="vs">
-        #version 300 es
+        attribute vec2 position;
+        attribute vec3 color;
 
-        layout(location=0) in vec2 position;
-        layout(location=1) in vec3 color;
-
-        out vec3 vColor; 
+        varying vec3 vColor; 
         void main() {
             vColor = color;
             gl_Position =  mercator_gl_lngLatToClip(position);
         }
     </script>
     <script type="shader/fs" id="fs">
-        #version 300 es
         precision highp float;
         
-        in vec3 vColor;
+        varying vec3 vColor;
 
         uniform float alpha;
 
-        out vec4 fragColor;
         void main() {
-            fragColor = vec4(vColor, alpha);
-            fragColor.rgb *= fragColor.a;
+            gl_FragColor = vec4(vColor, alpha);
+            gl_FragColor.rgb *= gl_FragColor.a;
         }
     </script>
     <script type="module">
@@ -108,8 +105,15 @@
             bearing: INITIAL_BEARING
         });
         
-        let app = PicoGL.createApp(canvas, { alpha: true })
-        .blend()
+        let gl = WebGLX.getContext(canvas, {
+            requireExtensions: [
+                "OES_vertex_array_object"
+            ],
+            contextOptions: { alpha: true },
+            forceWebGL1: true
+        })
+        let app = PicoGL.createApp(gl)
+        .enable(PicoGL.BLEND)
         .blendFunc(PicoGL.ONE, PicoGL.ONE_MINUE_SRC_ALPHA)
         .clearColor(0.0, 0.0, 0.0, 0.0);
 
@@ -148,6 +152,9 @@
         allocateMercatorUniforms(uniforms);
 
         app.createPrograms([vsSource, fsSource]).then(function([program]) {
+            program.bindAttribute(0, "position")
+            .bindAttribute(1, "color");
+
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, triangleArray);
 

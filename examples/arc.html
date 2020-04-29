@@ -4,6 +4,7 @@
     <title>MercatorGL Arc</title>
     <meta charset="utf-8">
     <script src="../build/mercator-gl.min.js"></script>
+    <script src="./lib/webglx.min.js"></script>
     <script src="./lib/picogl.min.js"></script>
     <script src="./lib/mapbox-gl.js"></script>
     <script src="./lib/utils.js"></script>
@@ -55,20 +56,19 @@
     <div id="mapbox"></div>
     <canvas id="gl-canvas"></canvas>
     <script type="shader/vs" id="vs">
-        #version 300 es
         #define HEIGHT 10.0
 
-        layout(location=0) in vec4 positions;
-        layout(location=1) in vec2 startPrecisionBits;
-        layout(location=2) in vec2 endPrecisionBits;
-        layout(location=3) in uint segmentIndex;
+        attribute vec4 positions;
+        attribute vec2 startPrecisionBits;
+        attribute vec2 endPrecisionBits;
+        attribute float segmentIndex;
 
         uniform float uNumSegments;
 
-        out float vFactor;
+        varying float vFactor;
 
         void main() {
-            float factor = float(segmentIndex) / (uNumSegments - 1.0);
+            float factor = segmentIndex / (uNumSegments - 1.0);
 
             vec2 startPosition = positions.xy;
             vec2 endPosition = positions.zw;
@@ -87,14 +87,12 @@
         }
     </script>
     <script type="shader/fs" id="fs">
-        #version 300 es
         precision highp float;
     
-        in float vFactor;
+        varying float vFactor;
 
-        out vec4 fragColor;
         void main() {
-            fragColor = mix(vec4(1.0, 0.25, 0.5, 1.0), vec4(0.0, 0.5, 0.78, 1.0), vFactor);
+            gl_FragColor = mix(vec4(1.0, 0.25, 0.5, 1.0), vec4(0.0, 0.5, 0.78, 1.0), vFactor);
         }
     </script>
     <script>
@@ -132,9 +130,17 @@
             maxZoom: 20
         });
         
-        let app = PicoGL.createApp(canvas, { alpha: true })
+        let gl = WebGLX.getContext(canvas, {
+            requireExtensions: [
+                "ANGLE_instanced_arrays",
+                "OES_vertex_array_object"
+            ],
+            contextOptions: { alpha: true },
+            forceWebGL1: true
+        });
+        let app = PicoGL.createApp(gl)
         .clearColor(0.0, 0.0, 0.0, 0.0)
-        .depthTest();
+        .enable(PicoGL.DEPTH_TEST);
 
         let timer = app.createTimer();
 
@@ -155,6 +161,10 @@
             app.createPrograms([vsSource, fsSource]),
             fetch('./data/sfmta.routes.json').then(response => response.json())
         ]).then(([[program], data]) => {
+            program.bindAttribute(0, "positions")
+            .bindAttribute(1, "startPrecisionBits")
+            .bindAttribute(2, "endPrecisionBits")
+            .bindAttribute(3, "segmentIndex");
 
             let positionData = new Float32Array(data.length * 4);
 
@@ -171,7 +181,7 @@
 
             // Annoying, but this seems to be required in FF
             // (at least 1 non-instanced attribute).
-            let segmentIndexData = new Uint8Array(NUM_SEGMENTS);
+            let segmentIndexData = new Float32Array(NUM_SEGMENTS);
             for (let i = 0; i < NUM_SEGMENTS; ++i) {
                 segmentIndexData[i] = i;
             }
@@ -182,7 +192,7 @@
             let positions = app.createVertexBuffer(PicoGL.FLOAT, 4, positionData);
             let startPrecision = app.createVertexBuffer(PicoGL.FLOAT, 2, startPrecisionData);
             let endPrecision = app.createVertexBuffer(PicoGL.FLOAT, 2, endPrecisionData);
-            let segmentIndex = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 1, segmentIndexData);
+            let segmentIndex = app.createVertexBuffer(PicoGL.FLOAT, 1, segmentIndexData);
 
             // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
             let vertexArray = app.createVertexArray()
