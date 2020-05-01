@@ -148,14 +148,20 @@
         let fsSource = document.getElementById("fs").text.trim();
 
         Promise.all([
-            app.createPrograms([vsSource, fsSource]),
+            app.createPrograms([
+                vsSource, 
+                fsSource,
+                {
+                    attributeLocations: {
+                        positions: 0,
+                        precisionBits: 1,
+                        radius: 2,
+                        shapePosition: 3
+                    }
+                }
+            ]),
             fetch('./data/sf.bike.parking.json').then(response => response.json())
         ]).then(([[program], data]) => {
-            program.bindAttribute(0, "positions")
-            .bindAttribute(1, "precisionBits")
-            .bindAttribute(2, "radius")
-            .bindAttribute(3, "shapePosition");
-
             let positionData = new Float32Array(data.length * 2);
             let radiusData = new Float32Array(data.length);
 

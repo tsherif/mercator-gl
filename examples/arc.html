@@ -158,14 +158,16 @@
         let fsSource = document.getElementById("fs").text.trim();
 
         Promise.all([
-            app.createPrograms([vsSource, fsSource]),
+            app.createPrograms([vsSource, fsSource, {
+                attributeLocations: {
+                    positions: 0,
+                    startPrecisionBits: 1,
+                    endPrecisionBits: 2,
+                    segmentIndex: 3,
+                }
+            }]),
             fetch('./data/sfmta.routes.json').then(response => response.json())
         ]).then(([[program], data]) => {
-            program.bindAttribute(0, "positions")
-            .bindAttribute(1, "startPrecisionBits")
-            .bindAttribute(2, "endPrecisionBits")
-            .bindAttribute(3, "segmentIndex");
-
             let positionData = new Float32Array(data.length * 4);
 
             for (let i = 0; i < data.length; ++i) {

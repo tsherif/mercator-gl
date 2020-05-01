@@ -157,15 +157,15 @@
         let fsSource =  document.getElementById("fs").text.trim();
 
         Promise.all([
-            app.createPrograms([vsSource, fsSource]),
+            app.createPrograms([vsSource, fsSource, {
+                positions: 0,
+                precisionBits: 1,
+                colors: 2,
+                columnPosition: 3,
+                columnNormal: 4
+            }]),
             fetch('./data/sf.bike.parking.json').then(response => response.json())
         ]).then(([[program], rawData]) => {
-            program.bindAttribute(0, "positions")
-            .bindAttribute(1, "precisionBits")
-            .bindAttribute(2, "colors")
-            .bindAttribute(3, "columnPosition")
-            .bindAttribute(4, "columnNormal");
-            
             let data = utils.pointsToMercatorGrid(rawData, 500);
 
             let positionData = new Float32Array(data.length * 3);

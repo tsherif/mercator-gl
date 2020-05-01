@@ -151,10 +151,12 @@
         };
         allocateMercatorUniforms(uniforms);
 
-        app.createPrograms([vsSource, fsSource]).then(function([program]) {
-            program.bindAttribute(0, "position")
-            .bindAttribute(1, "color");
-
+        app.createPrograms([vsSource, fsSource,{
+            attributeLocations: {
+                position: 0,
+                color: 1
+            }
+        }]).then(function([program]) {
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
             let drawCall = app.createDrawCall(program, triangleArray);
 
