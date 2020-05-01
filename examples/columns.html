@@ -158,11 +158,13 @@
 
         Promise.all([
             app.createPrograms([vsSource, fsSource, {
-                positions: 0,
-                precisionBits: 1,
-                colors: 2,
-                columnPosition: 3,
-                columnNormal: 4
+                attributeLocations: {
+                    positions: 0,
+                    precisionBits: 1,
+                    colors: 2,
+                    columnPosition: 3,
+                    columnNormal: 4
+                }
             }]),
             fetch('./data/sf.bike.parking.json').then(response => response.json())
         ]).then(([[program], rawData]) => {
