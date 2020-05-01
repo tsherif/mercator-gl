@@ -73,8 +73,8 @@
             vec2 startPosition = positions.xy;
             vec2 endPosition = positions.zw;
 
-            vec4 worldStart = mercator_gl_lngLatToWorld(startPosition, startPrecisionBits);
-            vec4 worldEnd = mercator_gl_lngLatToWorld(endPosition, endPrecisionBits);
+            vec4 worldStart = mercator_gl_lngLatToMercator(startPosition, startPrecisionBits);
+            vec4 worldEnd = mercator_gl_lngLatToMercator(endPosition, endPrecisionBits);
 
             vec4 position = mix(worldStart, worldEnd, factor);
             vFactor = factor;
@@ -83,7 +83,7 @@
             float heightFactor = -4.0 * offsetFactor * offsetFactor + 1.0;
             position.z += heightFactor * HEIGHT * distance(worldStart.xy, worldEnd.xy);
 
-            gl_Position = mercator_gl_worldToClip(position);
+            gl_Position = mercator_gl_mercatorToClip(position);
         }
     </script>
     <script type="shader/fs" id="fs">

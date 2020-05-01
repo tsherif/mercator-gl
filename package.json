@@ -1,6 +1,6 @@
 {
   "name": "mercator-gl",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "A minimal library for GLSL web mercator projections",
   "main": "build/mercator-gl.min.js",
   "repository": {
@@ -17,7 +17,8 @@
     "compile": "webpack --config webpack.prod.js",
     "build": "npm run test && npm run compile",
     "watch": "webpack --watch --config webpack.dev.js",
-    "test": "npm run lint"
+    "test": "npm run lint",
+    "docs": "jsdoc -d docs src/*.js"
   },
   "keywords": [
     "mercator",
@@ -32,7 +33,8 @@
     "url": "https://github.com/tsherif/mercator-gl/issues"
   },
   "devDependencies": {
-    "eslint": "^6.3.0",
+    "eslint": "^6.8.0",
+    "jsdoc": "^3.6.4",
     "webpack": "^4.41.6",
     "webpack-cli": "^3.3.8",
     "webpack-merge": "^4.2.2"

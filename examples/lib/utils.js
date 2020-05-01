@@ -49,7 +49,7 @@
 
         // From deck.gl: https://github.com/uber/deck.gl/blob/master/examples/layer-browser/src/utils/grid-aggregator.js
         // Used under MIT license
-        pointsToWorldGrid(points, cellSize) {
+        pointsToMercatorGrid(points, cellSize) {
           let numPoints = points.length;
           let latMin = Number.POSITIVE_INFINITY;
           let latMax = Number.NEGATIVE_INFINITY;

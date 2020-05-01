@@ -69,11 +69,11 @@
 
         void main() {
             vShapePosition = shapePosition;
-            vec4 worldPosition = mercator_gl_lngLatToWorld(positions, precisionBits);
+            vec4 worldPosition = mercator_gl_lngLatToMercator(positions, precisionBits);
             float r = clamp(radius * pixelsPerMeter * radiusScale, radiusLimits.x, radiusLimits.y);
             vec3 offset = shapePosition * r;
             worldPosition.xyz += offset;
-            gl_Position = mercator_gl_worldToClip(worldPosition);
+            gl_Position = mercator_gl_mercatorToClip(worldPosition);
         }
     </script>
     <script type="shader/fs" id="fs">

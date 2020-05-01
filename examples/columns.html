@@ -73,10 +73,10 @@
                 (columnPosition.z * 0.5 + 0.5) * positions.z
             );
 
-            vec4 worldPosition = mercator_gl_lngLatToWorld(lngLatElevation, precisionBits);
+            vec4 worldPosition = mercator_gl_lngLatToMercator(lngLatElevation, precisionBits);
             worldPosition.xy += columnPosition.xy * 200.0 * pixelsPerMeter;
             vNormal = columnNormal;
-            gl_Position = mercator_gl_worldToClip(worldPosition);
+            gl_Position = mercator_gl_mercatorToClip(worldPosition);
         
             vColor = colors;
         }
@@ -166,7 +166,7 @@
             .bindAttribute(3, "columnPosition")
             .bindAttribute(4, "columnNormal");
             
-            let data = utils.pointsToWorldGrid(rawData, 500);
+            let data = utils.pointsToMercatorGrid(rawData, 500);
 
             let positionData = new Float32Array(data.length * 3);
             let colorData = new Uint8Array(data.length * 3);
