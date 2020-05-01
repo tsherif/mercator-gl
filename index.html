@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>MercatorGL</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="site/css/docco.css"> 
+    <link rel="stylesheet" href="site/css/picogl.css"> 
+    <script src="site/js/highlight.min.js"></script>
+</head>
+<body>
+    <a href="https://github.com/tsherif/picogl.js"><img style="position: absolute; top: 0; right: 0; border: 0;" src="https://camo.githubusercontent.com/365986a132ccd6a44c23a9169022c0b5c890c387/68747470733a2f2f73332e616d617a6f6e6177732e636f6d2f6769746875622f726962626f6e732f666f726b6d655f72696768745f7265645f6161303030302e706e67" alt="Fork me on GitHub" data-canonical-src="https://s3.amazonaws.com/github/ribbons/forkme_right_red_aa0000.png"></a>
+    <h1>MercatorGL</h1>
+    <div class="description">
+        <a class="badge-link" href="https://github.com/tsherif/mercator-gl/blob/master/build/mercator-gl.min.js">
+            <img src="https://badge-size.herokuapp.com/tsherif/mercator-gl/master/build/mercator-gl.min.js.svg?compression=gzip">
+        </a>
+        <a class="badge-link" href="https://github.com/tsherif/mercator-gl/blob/master/LICENSE">
+            <img src="https://img.shields.io/github/license/tsherif/mercator-gl.svg">
+        </a>
+        <a class="badge-link" href="https://www.npmjs.com/package/mercator-gl">
+            <img src="https://img.shields.io/npm/v/mercator-gl.svg">
+        </a>
+    </div>
+    <div class="description">
+        <a class="resources-link" href="./docs/">
+            API Docs
+        </a>
+    </div>
+    <div class="description">
+        MercatorGL is a minimal library for calculating web mercator projections on a GPU using WebGL. It provides utilities to inject GLSL code for projecting longitude/latitude coordinates into already exisiting vertex shader code and calculate the uniforms it requires. MercatorGL focuses on numerical stability by performing most calculations at 64-bit precision, and switching to an "offset mode" at higher zoom levels (using a technique borrowed from [deck.gl](https://medium.com/vis-gl/how-sometimes-assuming-the-earth-is-flat-helps-speed-up-rendering-in-deck-gl-c43b72fd6db4)).
+    </div>
+    <div class="description">
+        Sample usage with <a href="https://docs.mapbox.com/mapbox-gl-js/api/">MapboxGL</a>:
+    </div>
+    <pre><code class="javascript">
+    let map = new mapboxgl.Map({
+        container: mapboxContainer,
+        style: "mapbox://styles/mapbox/streets-v9",
+        center: [-73.982130, 40.762896],
+        zoom: 15
+    });
+
+    // NOTE: MercatorGL works with both GLSL 1 and 3 shaders
+    let vs = `
+        #version 300 es
+        layout(location=0) in vec2 lngLatPosition;
+        void main() {
+            // mercator_gl_lngLatToClip function injected by injectMercatorGLSL().
+            // mercator_gl_lngLatToWorld and mercator_gl_worldToClip also available to do
+            // projection in multiple steps.
+            gl_Position = mercator_gl_lngLatToClip(position);
+        }
+    `;
+
+    let fs = `
+        #version 300 es
+        precision highp float;
+        uniform vec4 color;
+        out vec4 fragColor;
+        void main() {
+            fragColor = color;
+        }
+    `;
+
+
+    // Insert projection functions into vertex shader
+    let vertexShaderSource = injectMercatorGLSL(vs);
+    let fragmentShaderSource =  fs;
+    // Create WebGL program from vertexShaderSource and fragmentShaderSource
+
+    let uniforms = {
+        // An application uniform, not used by MercatorGL
+        color: new Float32Array(1.0, 0.0, 0.0, 1.0);
+    };
+
+    // Uniforms used by MercatorGL are added to the map.
+    allocateMercatorUniforms(uniforms);
+
+    map.on("render", (e) => {
+        let center = map.getCenter().toArray();
+        let zoom = map.getZoom();
+        let pitch = map.getPitch();
+        let bearing = map.getBearing();
+
+        // Update the values of MercatorGL uniforms in the map (including projection matrix provided by Mapbox).
+        // The application must use the map to update program uniforms used by MercatorGL.
+        updateMercatorUniforms(uniforms, center, zoom, map.transform.projMatrix);
+
+        // Draw to canvas
+    });
+    </code></pre>
+    
+    <div class="description">
+        MercatorGL can be used directly by downloading the <a href="https://raw.githubusercontent.com/tsherif/mercator-gl/master/build/mercator-gl.min.js">built source</a> and loading it via a script tag:    
+    </div>
+
+    <pre><code class="html">
+    &lt;script src&equals;&quot;js/mercator-gl.min.js&quot;&gt;&lt;/script&gt;
+    </code></pre>
+
+    <div class="description">
+        or it can be installed via <a href="https://www.npmjs.com/package/mercator-gl">npm</a>:   
+    </div>
+
+    <pre><code class="bash">
+    npm install mercator-gl
+    </code></pre>
+
+    <div class="description">
+        and loaded via ES6-style <code>import</code>:   
+    </div>
+
+    <pre><code class="javascript">
+    import MercatorGL from "mercator-gl";
+    </code></pre>
+
+    <h2>Examples</h2>
+    <a href="#" class="example-menu-button" id="triangle">Triangle</a>
+    <a href="#" class="example-menu-button" id="scatterplot">Scatterplot</a>
+    <a href="#" class="example-menu-button" id="arc">Arcs</a>
+    <a href="#" class="example-menu-button" id="columns">Columns</a>
+
+    <div id="example-div">
+        <div id="example-title"></div>
+        <iframe id="examples"></iframe>
+    </div>
+
+    <script>
+        var exampleFrame = document.getElementById("examples");
+        var exampleTitle = document.getElementById("example-title");
+
+        document.body.addEventListener("click", function(event) {
+            if (event.target.className !== "example-menu-button") {
+                return;
+            }
+
+            var link = event.target;
+            var title = link.text;
+            var src = "examples/" + event.target.id + ".html";
+            var sourceCodeURL = "https://github.com/tsherif/mercator-gl/blob/master/" + src;
+
+            exampleTitle.innerHTML = title + "<div><a href=\"" + sourceCodeURL + "\">Source code</a>";
+            examples.src = src;
+
+            event.stopPropagation();
+            event.preventDefault();
+        });
+
+        var canvas = document.createElement("canvas");
+        var gl = canvas.getContext("webgl");
+
+        if (gl) {
+            var buttons = document.getElementsByClassName("example-menu-button");
+            var exampleButton = buttons[Math.floor(Math.random() * buttons.length)];
+            exampleButton.click();
+
+            function testAll() {
+                var index = 0;
+                setInterval(function() {
+                    buttons[index].click();
+                    index = (index + 1) % buttons.length;
+                }, 2000);
+            }
+
+        } else {
+            document.getElementById("example-div").innerHTML = "Sorry your browser does not support WebGL.";
+        }
+
+        hljs.initHighlightingOnLoad();        
+    </script>
+    
+</body>
+</html>

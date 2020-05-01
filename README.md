@@ -16,6 +16,7 @@ An example of usage with [MapboxGL](https://docs.mapbox.com/mapbox-gl-js/api/) i
         zoom: 15
     });
 
+    // NOTE: MercatorGL works with both GLSL 1 and 3 shaders
     let vs = `
         #version 300 es
         layout(location=0) in vec2 lngLatPosition;
