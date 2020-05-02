@@ -100,9 +100,8 @@
             requireExtensions: [
                 "OES_vertex_array_object"
             ],
-            contextOptions: { alpha: true },
-            forceWebGL1: true
-        })
+            contextOptions: { alpha: true }
+        });
         let app = PicoGL.createApp(gl)
         .enable(PicoGL.BLEND)
         .blendFunc(PicoGL.ONE, PicoGL.ONE_MINUE_SRC_ALPHA)
