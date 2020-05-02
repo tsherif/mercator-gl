@@ -1,2 +1,3 @@
-Data from deck.gl https://github.com/uber/deck.gl
-Used under MIT license
+Data sources: 
+- https://github.com/visgl/deck.gl/tree/master/examples/layer-browser/data- 
+- https://data.humdata.org/dataset/highresolutionpopulationdensitymaps-egy
