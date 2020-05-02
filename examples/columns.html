@@ -97,6 +97,7 @@
         canvas.height = window.innerHeight;
 
         mapboxgl.accessToken = 'pk.eyJ1IjoidHNoZXJpZiIsImEiOiJjazlvOTh4aHUwODEwM21uazU0eDl3eTI0In0.DVkPgdLie1Wa08v02MXPWA';
+        mapboxgl.setRTLTextPlugin('https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.3/mapbox-gl-rtl-text.js');
         let map = new mapboxgl.Map({
             container: mapboxContainer,
             style: "mapbox://styles/mapbox/streets-v9",
