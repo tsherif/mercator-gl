@@ -1,0 +1,12 @@
+{
+    "unitTests": "test/*.test.js",
+    "renderTests": [
+        "examples/triangle.html",
+        "examples/scatterplot.html",
+        "examples/arc.html",
+        "examples/columns.html",
+        "examples/geojson.html"
+    ],
+    "referenceImageDir": "test/reference-images",
+    "coverageFiles": "src/*.js"
+}

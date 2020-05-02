@@ -7,10 +7,18 @@
     let gpuTimeSum = 0;
     let timeSampleCount = NUM_TIMING_SAMPLES - 1;
 
-    window.utils = {
-        SAN_FRANCISCO_MIN: [-122.511289, 37.709481],
-        SAN_FRANCISCO_MAX: [-122.37646761, 37.806013],
+    let randS = 1;
+    let randC = 1;
+    let frame = 0;
 
+    window.utils = {
+        random() {
+            randS = Math.sin(randC * 18.42);
+            randC = Math.cos(randS * 984.21);
+            let n = Math.abs(randS * randC) * 4532.3454;
+            return n - Math.floor(n);
+        },
+        
         addTimerElement() {
             this.timerDiv = document.createElement("div")
             this.timerDiv.id = "timer";
@@ -107,28 +115,6 @@
             positions,
             normals
           };
-        },
-
-        randomPoints(numPoints, min = this.SAN_FRANCISCO_MIN, max = this.SAN_FRANCISCO_MAX, maxValue = 10) {
-          let lngMin = min[0];
-          let latMin = min[1];
-
-          let lngRange = max[0] - min[0];
-          let latRange = max[1] - min[1];
-
-          let points = new Array(numPoints);
-
-          for (let i = 0; i < numPoints; ++i) {
-            points[i] = {
-              position: [
-                lngMin + Math.random() * lngRange,
-                latMin + Math.random() * latRange,
-              ],
-              value: Math.random() * maxValue
-            }
-          }
-
-          return points;
         }
     }
 })();

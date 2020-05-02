@@ -155,7 +155,7 @@
                 // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
                 fillDrawCalls[f] = {
                     drawCall: app.createDrawCall(program, fillVertexArray),
-                    uniforms: allocateMercatorUniforms({uColor: new Float32Array([Math.random(), Math.random(), Math.random(), 0.3])})
+                    uniforms: allocateMercatorUniforms({uColor: new Float32Array([utils.random(), utils.random(), utils.random(), 0.3])})
                 };
 
                 // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
@@ -216,6 +216,8 @@
                 }
 
                 timer.end();
+
+                window.glcheck_renderDone = true;
             });
         });
 
