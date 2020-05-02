@@ -74,7 +74,7 @@
             );
 
             vec4 worldPosition = mercator_gl_lngLatToMercator(lngLatElevation, precisionBits);
-            worldPosition.xy += columnPosition.xy * 200.0 * pixelsPerMeter;
+            worldPosition.xy += columnPosition.xy * 500.0 * pixelsPerMeter;
             vNormal = columnNormal;
             gl_Position = mercator_gl_mercatorToClip(worldPosition);
         
@@ -92,6 +92,7 @@
         void main() {
             float light = dot(normalize(vNormal), -LIGHT_DIR) + 0.1;
             gl_FragColor = vec4(vColor * light, 1.0);
+            gl_FragColor *= 0.5;
         }
     </script>
     <script>
@@ -104,10 +105,11 @@
             updateMercatorUniforms
         } = MercatorGL;
 
-        const INITIAL_ZOOM = 11.8;
-        const INITIAL_CENTER = [-122.427, 37.752];
+
+        const INITIAL_ZOOM = 5.1;
+        const INITIAL_CENTER = [29.5, 29.5];
         const INITIAL_PITCH = 30;
-        const INITIAL_BEARING = 20;
+        const INITIAL_BEARING = 0;
 
         let mapboxContainer = document.getElementById("mapbox");
         let canvas = document.getElementById("gl-canvas");
@@ -166,31 +168,41 @@
                     columnNormal: 4
                 }
             }]),
-            fetch('./data/sf.bike.parking.json').then(response => response.json())
-        ]).then(([[program], rawData]) => {
-            let data = utils.pointsToMercatorGrid(rawData, 500);
+            fetch('./data/population_egy_2018-10-01-aggregated.json').then(response => response.json())
+        ]).then(([[program], data]) => {
+            let minPopulation = Number.POSITIVE_INFINITY;
+            let maxPopulation = Number.NEGATIVE_INFINITY;
+
+            data.forEach((item) => {
+              minPopulation = Math.min(minPopulation, item.population);
+              maxPopulation = Math.max(maxPopulation, item.population);
+            });
+
+            let rangePopulation = maxPopulation - minPopulation;
 
             let positionData = new Float32Array(data.length * 3);
-            let colorData = new Uint8Array(data.length * 3);
+            let colorData = new Uint8Array(data.length * 2);
 
             for (let i = 0; i < data.length; ++i) {
                 let pi = i * 3;
-                let coords = data[i].position;
+                let ci = i * 2;
+                let item = data[i];
+                let population = item.population;
 
-                positionData[pi]     = coords[0];
-                positionData[pi + 1] = coords[1];
-                positionData[pi + 2] = data[i].value * 5000;
+                positionData[pi]     = item.longitude;
+                positionData[pi + 1] = item.latitude;
+                positionData[pi + 2] = population * 3;
 
-                colorData[pi] = data[i].value * 255;
-                colorData[pi + 1] = 0;
-                colorData[pi + 2] = 255 - data[i].value * 255;
+                let ratio = (population - minPopulation) / rangePopulation;
+                colorData[ci] = 255 * ratio;
+                colorData[ci + 1] = 255 - 255 * ratio;
             }
 
             let precisionData = highPrecisionLngLat(positionData, 3);
 
             let positions = app.createVertexBuffer(PicoGL.FLOAT, 3, positionData);
             let precision = app.createVertexBuffer(PicoGL.FLOAT, 2, precisionData);
-            let colors = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 3, colorData);
+            let colors = app.createVertexBuffer(PicoGL.UNSIGNED_BYTE, 2, colorData);
 
             let columnData = utils.createColumn(1, 2, 20);
             let colummPositions = app.createVertexBuffer(PicoGL.FLOAT, 3, columnData.positions);

@@ -47,66 +47,6 @@
             }
         },
 
-        // From deck.gl: https://github.com/uber/deck.gl/blob/master/examples/layer-browser/src/utils/grid-aggregator.js
-        // Used under MIT license
-        pointsToMercatorGrid(points, cellSize) {
-          let numPoints = points.length;
-          let latMin = Number.POSITIVE_INFINITY;
-          let latMax = Number.NEGATIVE_INFINITY;
-
-          for (let i = 0; i < numPoints; ++i) {
-            let lat = points[i].COORDINATES[1];
-            latMin = Math.min(latMin, lat);
-            latMax = Math.max(latMax, lat);
-          }
-
-          let centerLat = (latMin + latMax) / 2;
-
-          let latOffset = (cellSize / EARTH_RADIUS) * (180 / Math.PI);
-          let lonOffset = ((cellSize / EARTH_RADIUS) * (180 / Math.PI)) / Math.cos((centerLat * Math.PI) / 180);
-
-          let grid = {};
-          let maxHeight = Number.NEGATIVE_INFINITY;
-
-          let numCells = 0;
-          for (let i = 0; i < numPoints; ++i) {
-            let coords = points[i].COORDINATES;
-            let latIdx = Math.floor((coords[1] + 90) / latOffset);
-            let lonIdx = Math.floor((coords[0] + 180) / lonOffset);
-
-            if (!grid[latIdx]) {
-              grid[latIdx] = {};
-            }
-            if (!grid[latIdx][lonIdx]) {
-              grid[latIdx][lonIdx] = 0;
-              numCells++;
-            }
-            ++grid[latIdx][lonIdx];
-
-            maxHeight = Math.max(maxHeight, grid[latIdx][lonIdx]);
-          }
-
-          let data = new Array(numCells);
-          let i = 0;
-
-          for (let latKey in grid) {
-            const latIdx = parseInt(latKey, 10);
-            let lonData = grid[latKey];
-
-            for (let lonKey in lonData) {
-              let lonIdx = parseInt(lonKey, 10);
-              let value = grid[latKey][lonKey];
-
-              data[i++] = {
-                position: [-180 + lonOffset * lonIdx, -90 + latOffset * latIdx],
-                value: value / maxHeight
-              };
-            }
-          };
-
-          return data;
-        },
-
         // From deck.gl: https://github.com/uber/deck.gl/blob/master/modules/layers/src/column-layer/column-geometry.js
         // Used under MIT license
         createColumn(radius = 1, height = 1, nradial = 10) {
