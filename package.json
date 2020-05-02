@@ -1,7 +1,7 @@
 {
   "name": "mercator-gl",
-  "version": "0.8.0",
-  "description": "A minimal library for GLSL web mercator projections",
+  "version": "0.8.1",
+  "description": "Tiny library for GLSL web mercator projections",
   "main": "build/mercator-gl.min.js",
   "repository": {
     "type": "git",
@@ -28,6 +28,7 @@
     "3d"
   ],
   "license": "MIT",
+  "homepage": "https://tsherif.github.io/mercator-gl/",
   "bugs": {
     "url": "https://github.com/tsherif/mercator-gl/issues"
   },

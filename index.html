@@ -27,13 +27,13 @@
         </a>
     </div>
     <div class="description">
-        MercatorGL is a minimal library for calculating web mercator projections on a GPU using WebGL. It provides utilities to inject GLSL code for projecting longitude/latitude coordinates into already exisiting vertex shader code and calculate the uniforms it requires. MercatorGL focuses on numerical stability by performing most calculations at 64-bit precision, and switching to an "offset mode" at higher zoom levels (using a technique borrowed from [deck.gl](https://medium.com/vis-gl/how-sometimes-assuming-the-earth-is-flat-helps-speed-up-rendering-in-deck-gl-c43b72fd6db4)).
+        MercatorGL is a minimal library for calculating web mercator projections on a GPU using WebGL. It provides utilities to inject GLSL code for projecting longitude/latitude coordinates into already exisiting vertex shader code and calculate the uniforms it requires. MercatorGL focuses on numerical stability by performing most calculations at 64-bit precision, and switching to an "offset mode" at higher zoom levels (using a technique borrowed from <a href="https://medium.com/vis-gl/how-sometimes-assuming-the-earth-is-flat-helps-speed-up-rendering-in-deck-gl-c43b72fd6db4">deck.gl</a>).
     </div>
     <div class="description">
         Sample usage with <a href="https://docs.mapbox.com/mapbox-gl-js/api/">MapboxGL</a>:
     </div>
     <pre><code class="javascript">
-    let map = new mapboxgl.Map({
+        let map = new mapboxgl.Map({
         container: mapboxContainer,
         style: "mapbox://styles/mapbox/streets-v9",
         center: [-73.982130, 40.762896],
@@ -46,7 +46,7 @@
         layout(location=0) in vec2 lngLatPosition;
         void main() {
             // mercator_gl_lngLatToClip function injected by injectMercatorGLSL().
-            // mercator_gl_lngLatToWorld and mercator_gl_worldToClip also available to do
+            // mercator_gl_lngLatToMercator and mercator_gl_mercatorToClip also available to do
             // projection in multiple steps.
             gl_Position = mercator_gl_lngLatToClip(position);
         }
