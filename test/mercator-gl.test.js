@@ -88,6 +88,22 @@ glcheck("Uniforms", async (t) => {
     t.done();
 });
 
+glcheck("High precision", async (t) => {
+    let lngLat = [50.34545345, 34.34534621];
+    let precision = highPrecisionLngLat(lngLat);
+    t.equal(precision[0], Math.fround(lngLat[0] - Math.fround(lngLat[0])), "Longitude precision");
+    t.equal(precision[1], Math.fround(lngLat[1] - Math.fround(lngLat[1])), "Latitude precision");
+
+    lngLat = [0, 50.34545345, 34.34534621, 0, 50.98235378, 34.8934579];
+    precision = highPrecisionLngLat(lngLat, 1, 3);
+    t.equal(precision[0], Math.fround(lngLat[1] - Math.fround(lngLat[1])), "Longitude precision");
+    t.equal(precision[1], Math.fround(lngLat[2] - Math.fround(lngLat[2])), "Latitude precision");
+    t.equal(precision[2], Math.fround(lngLat[4] - Math.fround(lngLat[4])), "Longitude precision");
+    t.equal(precision[3], Math.fround(lngLat[5] - Math.fround(lngLat[5])), "Latitude precision");
+
+    t.done();
+});
+
 glcheck("Unit conversions", async (t) => {
     t.ok(Number.isFinite(pixelsPerMeter(50, 10)), "pixelsPerMeter valid value");
     t.ok(numericalArray(pixelsPerDegree([0, 0], 50, 10)), "pixelsPerMeter valid value");
