@@ -41,7 +41,7 @@
     <div id="mapbox"></div>
     <canvas id="gl-canvas"></canvas>
     <script type="shader/vs" id="vs">
-        #define HEIGHT 10.0
+        #define HEIGHT 0.3
 
         attribute vec4 positions;
         attribute vec2 startPrecisionBits;
@@ -49,6 +49,7 @@
         attribute float segmentIndex;
 
         uniform float uNumSegments;
+        uniform float metersPerPixel;
 
         varying float vFactor;
 
@@ -58,15 +59,15 @@
             vec2 startPosition = positions.xy;
             vec2 endPosition = positions.zw;
 
-            vec4 worldStart = mercator_gl_lngLatToMercator(startPosition, startPrecisionBits);
-            vec4 worldEnd = mercator_gl_lngLatToMercator(endPosition, endPrecisionBits);
+            vec4 mercatorStart = mercator_gl_lngLatToMercator(startPosition, startPrecisionBits);
+            vec4 mercatorEnd = mercator_gl_lngLatToMercator(endPosition, endPrecisionBits);
 
-            vec4 position = mix(worldStart, worldEnd, factor);
+            vec4 position = mix(mercatorStart, mercatorEnd, factor);
             vFactor = factor;
 
             float offsetFactor = factor - 0.5;
             float heightFactor = -4.0 * offsetFactor * offsetFactor + 1.0;
-            position.z += heightFactor * HEIGHT * distance(worldStart.xy, worldEnd.xy);
+            position.z += heightFactor * HEIGHT * distance(mercatorStart.xy, mercatorEnd.xy) * metersPerPixel;
 
             gl_Position = mercator_gl_mercatorToClip(position);
         }
@@ -86,12 +87,13 @@
         const {
             injectMercatorGLSL,
             highPrecisionLngLat,
+            pixelsPerMeter,
             allocateMercatorUniforms,
             updateMercatorUniforms
         } = MercatorGL;
 
         const INITIAL_ZOOM = 11.5;
-        const INITIAL_CENTER = [-122.427, 37.752];
+        const INITIAL_CENTER = [-122.435, 37.765];
         const INITIAL_PITCH = 50;
         const INITIAL_BEARING = 0;
 
@@ -206,6 +208,8 @@
                 let zoom = map.getZoom();
                 let pitch = map.getPitch();
                 let bearing = map.getBearing();
+
+                drawCall.uniform("metersPerPixel", 1 / pixelsPerMeter(center[1], zoom));
 
                 updateMercatorUniforms(uniforms, center, zoom, map.transform.projMatrix);
 
