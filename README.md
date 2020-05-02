@@ -1,7 +1,7 @@
 MercatorGL
 ==========
 
-[![GZIP size](https://badge-size.herokuapp.com/tsherif/mercator-gl/master/build/mercator-gl.min.js.svg?compression=gzip)](https://github.com/tsherif/mercator-gl/blob/master/build/mercator-gl.min.js) [![License](https://img.shields.io/github/license/tsherif/mercator-gl.svg)](https://github.com/tsherif/mercator-gl/blob/master/LICENSE) [![NPM](https://img.shields.io/npm/v/picogl.svg)](https://www.npmjs.com/package/picogl)
+[![GZIP size](https://badge-size.herokuapp.com/tsherif/mercator-gl/master/build/mercator-gl.min.js.svg?compression=gzip)](https://github.com/tsherif/mercator-gl/blob/master/build/mercator-gl.min.js) [![License](https://img.shields.io/github/license/tsherif/mercator-gl.svg)](https://github.com/tsherif/mercator-gl/blob/master/LICENSE) [![NPM](https://img.shields.io/npm/v/mercator-gl.svg)](https://www.npmjs.com/package/mercator-gl)
 
 MercatorGL is a minimal library for calculating web mercator projections on a GPU using WebGL. It provides utilities to inject GLSL code for projecting longitude/latitude coordinates into already exisiting vertex shader code and calculate the uniforms it requires. MercatorGL focuses on numerical stability by performing most calculations at 64-bit precision, and switching to an "offset mode" at higher zoom levels (using a technique borrowed from [deck.gl](https://medium.com/vis-gl/how-sometimes-assuming-the-earth-is-flat-helps-speed-up-rendering-in-deck-gl-c43b72fd6db4)).
 
