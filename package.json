@@ -34,6 +34,7 @@
     "url": "https://github.com/tsherif/mercator-gl/issues"
   },
   "devDependencies": {
+    "coveralls": "^3.1.0",
     "eslint": "^6.8.0",
     "glcheck": "^0.3.5",
     "jsdoc": "^3.6.4",
