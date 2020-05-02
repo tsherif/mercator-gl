@@ -9,23 +9,8 @@
     <script src="./lib/mapbox-gl.js"></script>
     <script src="./lib/earcut.min.js"></script>
     <script src="./lib/utils.js"></script>
+    <link rel="stylesheet" href="../site/css/mercator-gl-example.css">
     <link href="./lib/mapbox-gl.css" rel="stylesheet" />
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            overflow-y: hidden;
-        }
-
-        #mapbox {
-            position: absolute;
-        }
-
-        #gl-canvas {
-            position: absolute;
-            pointer-events: none;
-        }
-    </style>
 </head>
 <!--
   The MIT License (MIT)
@@ -49,10 +34,6 @@
   IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
   CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 -->
-<!-- 
-    Port of GeoJSON example from deck.gl
-    https://github.com/uber/deck.gl/tree/master/examples/layer-browser
- -->
 <body>
     <div id="mapbox"></div>
     <canvas id="gl-canvas"></canvas>
@@ -85,9 +66,9 @@
             updateMercatorUniforms
         } = MercatorGL;
 
-        const INITIAL_ZOOM = 12;
-        const INITIAL_CENTER = [-122.427, 37.752];
-        const INITIAL_PITCH = 50;
+        const INITIAL_ZOOM = 10.2;
+        const INITIAL_CENTER = [44.375, 33.31];
+        const INITIAL_PITCH = 0;
         const INITIAL_BEARING = 0;
 
         let mapboxContainer = document.getElementById("mapbox");
@@ -100,6 +81,7 @@
         canvas.height = window.innerHeight;
 
         mapboxgl.accessToken = 'pk.eyJ1IjoidHNoZXJpZiIsImEiOiJjazlvOTh4aHUwODEwM21uazU0eDl3eTI0In0.DVkPgdLie1Wa08v02MXPWA';
+        mapboxgl.setRTLTextPlugin('https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-rtl-text/v0.2.3/mapbox-gl-rtl-text.js');
         let map = new mapboxgl.Map({
             container: mapboxContainer,
             style: "mapbox://styles/mapbox/streets-v9",
@@ -143,7 +125,7 @@
                     precisionBits: 1
                 }
             }]),
-            fetch('./data/sf.zip.geo.json').then(response => response.json())
+            fetch('./data/baghdad_neighborhoods.json').then(response => response.json())
         ]).then(([[program], data]) => {
             data = data.features;
 

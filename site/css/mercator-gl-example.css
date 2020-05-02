@@ -1,9 +1,7 @@
-html {
-    overflow: hidden;
-}
-
-body {
+html, body {
+    height: 100%;
     margin: 0;
+    overflow-y: hidden;
 }
 
 #example-title {
@@ -16,11 +14,23 @@ body {
     display: none;
 }
 
+#mapbox {
+    position: absolute;
+}
+
+#gl-canvas {
+    position: absolute;
+    pointer-events: none;
+}
+
 #timer {
     position: absolute;
-    bottom: 10px;
-    left: 10px;
+    top: 10px;
+    right: 10px;
     color: white;
+    background-color: gray;
+    padding: 0.5em;
+    z-index: 999;
 }
 
 #github-ribbon {

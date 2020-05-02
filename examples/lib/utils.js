@@ -14,11 +14,6 @@
         addTimerElement() {
             this.timerDiv = document.createElement("div")
             this.timerDiv.id = "timer";
-            this.timerDiv.style.zIndex = 9999;
-            this.timerDiv.style.position = "absolute";
-            this.timerDiv.style.top = "10px";
-            this.timerDiv.style.right = "10px";
-            this.timerDiv.style.color = "black";
             this.cpuTimeElement = document.createElement("div");
             this.gpuTimeElement = document.createElement("div");
             this.timerDiv.appendChild(this.cpuTimeElement);
