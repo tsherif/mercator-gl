@@ -92,8 +92,8 @@
             updateMercatorUniforms
         } = MercatorGL;
 
-        const INITIAL_ZOOM = 11.5;
-        const INITIAL_CENTER = [-122.435, 37.765];
+        const INITIAL_ZOOM = 11.4;
+        const INITIAL_CENTER = [-73.60, 45.505];
         const INITIAL_PITCH = 50;
         const INITIAL_BEARING = 0;
 
@@ -153,14 +153,15 @@
                     segmentIndex: 3,
                 }
             }]),
-            fetch('./data/sfmta.routes.json').then(response => response.json())
+            fetch('./data/bixi-trips-2019-10-15-12.json').then(response => response.json())
         ]).then(([[program], data]) => {
+            console.log(data.length);
             let positionData = new Float32Array(data.length * 4);
 
             for (let i = 0; i < data.length; ++i) {
                 let pi = i * 4;
-                let start = data[i].START;
-                let end = data[i].END;
+                let start = data[i].start;
+                let end = data[i].end;
 
                 positionData[pi]     = start[0];
                 positionData[pi + 1] = start[1];
