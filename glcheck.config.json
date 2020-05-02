@@ -8,5 +8,6 @@
         "examples/geojson.html"
     ],
     "referenceImageDir": "test/reference-images",
-    "coverageFiles": "src/*.js"
+    "coverageFiles": "src/*.js",
+    "renderTimeout": 10000
 }
