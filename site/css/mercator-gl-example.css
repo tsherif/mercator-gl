@@ -12,6 +12,7 @@ html, body {
     background-color: gray;
     padding: 0.5em;
     display: none;
+    z-index: 999;
 }
 
 #mapbox {
@@ -25,7 +26,7 @@ html, body {
 
 #timer {
     position: absolute;
-    top: 10px;
+    bottom: 30px;
     right: 10px;
     color: white;
     background-color: gray;
