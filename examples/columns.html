@@ -60,11 +60,9 @@
         attribute vec2 precisionBits;
         attribute vec3 colors;
         attribute vec3 columnPosition;
-        attribute vec3 columnNormal;
 
         uniform float pixelsPerMeter;
 
-        varying vec3 vNormal;
         varying vec3 vColor;
 
         void main() {
@@ -75,7 +73,6 @@
 
             vec4 worldPosition = mercator_gl_lngLatToMercator(lngLatElevation, precisionBits);
             worldPosition.xy += columnPosition.xy * 500.0 * pixelsPerMeter;
-            vNormal = columnNormal;
             gl_Position = mercator_gl_mercatorToClip(worldPosition);
         
             vColor = colors;
@@ -83,16 +80,14 @@
     </script>
     <script type="shader/fs" id="fs">
         precision highp float;
-        
-        #define LIGHT_DIR normalize(vec3(-1.0, -1.0, -1.0))
+    
+        #define ALPHA 0.5
 
         varying vec3 vNormal;
         varying vec3 vColor;
 
         void main() {
-            float light = dot(normalize(vNormal), -LIGHT_DIR) + 0.1;
-            gl_FragColor = vec4(vColor * light, 1.0);
-            gl_FragColor *= 0.5;
+            gl_FragColor = vec4(vColor, 1.0) * ALPHA;
         }
     </script>
     <script>
@@ -164,8 +159,7 @@
                     positions: 0,
                     precisionBits: 1,
                     colors: 2,
-                    columnPosition: 3,
-                    columnNormal: 4
+                    columnPosition: 3
                 }
             }]),
             fetch('./data/population_egy_2018-10-01-aggregated.json').then(response => response.json())
@@ -206,7 +200,6 @@
 
             let columnData = utils.createColumn(1, 2, 20);
             let colummPositions = app.createVertexBuffer(PicoGL.FLOAT, 3, columnData.positions);
-            let colummNormals = app.createVertexBuffer(PicoGL.FLOAT, 3, columnData.normals);
           
 
             // COMBINE VERTEX BUFFERS INTO VERTEX ARRAY
@@ -214,8 +207,7 @@
             .instanceAttributeBuffer(0, positions)
             .instanceAttributeBuffer(1, precision)
             .instanceAttributeBuffer(2, colors, {normalized: true})
-            .vertexAttributeBuffer(3, colummPositions)
-            .vertexAttributeBuffer(4, colummNormals);
+            .vertexAttributeBuffer(3, colummPositions);
   
 
             // CREATE DRAW CALL FROM PROGRAM AND VERTEX ARRAY
