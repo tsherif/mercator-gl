@@ -130,14 +130,23 @@
         var exampleFrame = document.getElementById("examples");
         var exampleTitle = document.getElementById("example-title");
 
+        var titles = {
+            triangle: "Midtown Triangle, New York City",
+            scatterplot: "Bike Racks, San Francisco",
+            arc: "Bixi Trips, Montreal",
+            columns: "Polulation Density, Egypt",
+            geojson: "Neighborhoods, Baghdad"
+        }
+
         document.body.addEventListener("click", function(event) {
             if (event.target.className !== "example-menu-button") {
                 return;
             }
 
             var link = event.target;
-            var title = link.text;
-            var src = "examples/" + event.target.id + ".html";
+            var id = link.id;
+            var title = titles[id];
+            var src = "examples/" + id + ".html";
             var sourceCodeURL = "https://github.com/tsherif/mercator-gl/blob/master/" + src;
 
             exampleTitle.innerHTML = title + "<div><a href=\"" + sourceCodeURL + "\">Source code</a>";
