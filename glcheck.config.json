@@ -9,5 +9,5 @@
     ],
     "referenceImageDir": "test/reference-images",
     "coverageFiles": "src/*.js",
-    "renderTimeout": 10000
+    "renderTimeout": 20000
 }
