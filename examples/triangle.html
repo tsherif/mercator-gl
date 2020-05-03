@@ -153,8 +153,6 @@
             map.on("render", (e) => {
                 let center = map.getCenter().toArray();
                 let zoom = map.getZoom();
-                let pitch = map.getPitch();
-                let bearing = map.getBearing();
 
                 updateMercatorUniforms(uniforms, center, zoom, map.transform.projMatrix);
 

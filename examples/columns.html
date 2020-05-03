@@ -214,8 +214,6 @@
 
                 let center = map.getCenter().toArray();
                 let zoom = map.getZoom();
-                let pitch = map.getPitch();
-                let bearing = map.getBearing();
 
                 drawCall.uniform("pixelsPerMeter", pixelsPerMeter(center[1], zoom));
 

@@ -56,8 +56,6 @@ An example of usage with [MapboxGL](https://docs.mapbox.com/mapbox-gl-js/api/) i
     map.on("render", (e) => {
         let center = map.getCenter().toArray();
         let zoom = map.getZoom();
-        let pitch = map.getPitch();
-        let bearing = map.getBearing();
 
         // Update the values of MercatorGL uniforms in the map (including projection matrix provided by Mapbox).
         // The application must use the map to update program uniforms used by MercatorGL.

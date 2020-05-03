@@ -1,6 +1,6 @@
 {
   "name": "mercator-gl",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Tiny library for GLSL web mercator projections",
   "main": "build/mercator-gl.min.js",
   "repository": {
